@@ -1,5 +1,20 @@
 package com.greasepencil.pairshot.ui.pair
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.automirrored.outlined.Label
+import com.greasepencil.pairshot.data.db.AreaEntity
+import com.greasepencil.pairshot.data.repo.PhotoImporter
+import com.greasepencil.pairshot.domain.AreaPresets
+import com.greasepencil.pairshot.ui.components.LabelSheet
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -73,11 +88,35 @@ data class PairState(val loaded: Boolean = false, val pair: PairRow? = null)
 class PairViewModel @Inject constructor(
     handle: SavedStateHandle,
     private val repo: JobRepository,
-    settingsStore: SettingsStore,
+    private val importer: PhotoImporter,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
     private val pairId = handle.toRoute<PairRoute>().pairId
     val state: StateFlow<PairState> = repo.observePair(pairId).map { PairState(true, it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PairState())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val labels: StateFlow<List<AreaEntity>> = state.map { it.pair?.pair?.jobId }.distinctUntilChanged()
+        .flatMapLatest { jobId -> if (jobId == null) flowOf(emptyList()) else repo.observeAreas(jobId) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val suggestions = MutableStateFlow<List<String>>(emptyList())
+
+    init {
+        viewModelScope.launch {
+            suggestions.value = AreaPresets.rank(settingsStore.settings.first().trade, repo.usedAreaNames())
+        }
+    }
+
+    fun setLabel(areaId: String?) = viewModelScope.launch { repo.setPairArea(pairId, areaId) }
+    fun newLabel(name: String) = viewModelScope.launch {
+        val jobId = state.value.pair?.pair?.jobId ?: return@launch
+        if (name.isBlank()) return@launch
+        repo.setPairArea(pairId, repo.addArea(jobId, name).id)
+    }
+    fun importAfter(uri: Uri, failed: () -> Unit) = viewModelScope.launch {
+        if (!importer.importAfter(pairId, uri)) failed()
+    }
     val settings: StateFlow<AppSettings> = settingsStore.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
@@ -102,6 +141,12 @@ fun PairScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var exportMenu by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
+    var labelSheet by remember { mutableStateOf(false) }
+    val labels by vm.labels.collectAsStateWithLifecycle()
+    val suggestions by vm.suggestions.collectAsStateWithLifecycle()
+    val pickAfter = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) vm.importAfter(uri) { scope.launch { snackbar.showSnackbar("That photo couldn't be read.") } }
+    }
 
     LaunchedEffect(s.loaded, s.pair) { if (s.loaded && s.pair == null) onBack() }
     val row = s.pair ?: return
@@ -110,7 +155,7 @@ fun PairScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(row.areaName, style = MaterialTheme.typography.headlineSmall) },
+                title = { Text(row.areaName ?: "No label", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = { IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Delete pair") } },
             )
@@ -130,8 +175,17 @@ fun PairScreen(
                     Icon(Icons.Outlined.CameraAlt, null)
                     Text("  Shoot the after")
                 }
+                TextButton(
+                    onClick = { pickAfter.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Or pick the after from your gallery") }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssistChip(
+                    onClick = { labelSheet = true },
+                    label = { Text(row.areaName?.let { "Label: $it" } ?: "Add label") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Label, null) },
+                )
                 AssistChip(
                     onClick = vm::setCover,
                     label = { Text(if (p.isCover) "Cover photo" else "Make cover") },
@@ -180,6 +234,16 @@ fun PairScreen(
         }
     }
 
+    if (labelSheet) {
+        LabelSheet(
+            current = p.areaId,
+            jobLabels = labels,
+            suggestions = suggestions,
+            onPickExisting = { vm.setLabel(it); labelSheet = false },
+            onNew = { vm.newLabel(it); labelSheet = false },
+            onDismiss = { labelSheet = false },
+        )
+    }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },

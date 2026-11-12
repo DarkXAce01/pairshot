@@ -17,13 +17,19 @@ import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
+/** How the before is shown while shooting the after. */
+enum class GhostMode(val label: String) { OUTLINE("Outline"), PHOTO("Photo"), OFF("Off") }
+
 data class AppSettings(
     val onboarded: Boolean = false,
     val businessName: String = "",
     val trade: Trade = Trade.PRESSURE_WASHING,
     val messageTemplate: String = DEFAULT_TEMPLATE,
-    val ghostOpacity: Float = 0.35f,
-    val ghostEdges: Boolean = false,
+    val ghostStrength: Float = 0.5f,
+    val ghostMode: GhostMode = GhostMode.OUTLINE,
+    val businessPhone: String = "",
+    val reviewUrl: String = "",
+    val bookingUrl: String = "",
     val isPro: Boolean = false,
 ) {
     companion object {
@@ -38,8 +44,11 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val businessName = stringPreferencesKey("business_name")
         val trade = stringPreferencesKey("trade")
         val template = stringPreferencesKey("message_template")
-        val ghostOpacity = floatPreferencesKey("ghost_opacity")
-        val ghostEdges = booleanPreferencesKey("ghost_edges")
+        val ghostStrength = floatPreferencesKey("ghost_strength")
+        val ghostMode = stringPreferencesKey("ghost_mode")
+        val phone = stringPreferencesKey("business_phone")
+        val review = stringPreferencesKey("review_url")
+        val booking = stringPreferencesKey("booking_url")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -48,8 +57,11 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             businessName = p[Keys.businessName] ?: "",
             trade = p[Keys.trade]?.let { runCatching { Trade.valueOf(it) }.getOrNull() } ?: Trade.PRESSURE_WASHING,
             messageTemplate = p[Keys.template] ?: AppSettings.DEFAULT_TEMPLATE,
-            ghostOpacity = p[Keys.ghostOpacity] ?: 0.35f,
-            ghostEdges = p[Keys.ghostEdges] ?: false,
+            ghostStrength = p[Keys.ghostStrength] ?: 0.5f,
+            ghostMode = p[Keys.ghostMode]?.let { runCatching { GhostMode.valueOf(it) }.getOrNull() } ?: GhostMode.OUTLINE,
+            businessPhone = p[Keys.phone] ?: "",
+            reviewUrl = p[Keys.review] ?: "",
+            bookingUrl = p[Keys.booking] ?: "",
         )
     }
 
@@ -62,8 +74,11 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     suspend fun setBusinessName(name: String) = context.dataStore.edit { it[Keys.businessName] = name.trim() }
     suspend fun setTrade(trade: Trade) = context.dataStore.edit { it[Keys.trade] = trade.name }
     suspend fun setTemplate(t: String) = context.dataStore.edit { it[Keys.template] = t }
-    suspend fun setGhost(opacity: Float, edges: Boolean) = context.dataStore.edit {
-        it[Keys.ghostOpacity] = opacity.coerceIn(0.1f, 0.9f)
-        it[Keys.ghostEdges] = edges
+    suspend fun setGhost(strength: Float, mode: GhostMode) = context.dataStore.edit {
+        it[Keys.ghostStrength] = strength.coerceIn(0.1f, 1f)
+        it[Keys.ghostMode] = mode.name
     }
+    suspend fun setBusinessPhone(v: String) = context.dataStore.edit { it[Keys.phone] = v.trim() }
+    suspend fun setReviewUrl(v: String) = context.dataStore.edit { it[Keys.review] = v.trim() }
+    suspend fun setBookingUrl(v: String) = context.dataStore.edit { it[Keys.booking] = v.trim() }
 }

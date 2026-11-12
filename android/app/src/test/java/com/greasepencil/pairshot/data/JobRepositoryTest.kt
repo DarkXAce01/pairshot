@@ -132,17 +132,39 @@ class JobRepositoryTest {
         assertThat(repo.observePairs(job).first()).isEmpty()
     }
 
-    @Test fun `deleting an area deletes its pairs and files, not other areas`() = runTest {
+    @Test fun `removing a label keeps its photos, unlabelled`() = runTest {
         val job = repo.createJob("A", null, null)
         val keep = repo.addArea(job, "Keep")
         val drop = repo.addArea(job, "Drop")
         val kept = shot(); val dropped = shot()
         repo.addBefore(job, keep.id, kept)
         repo.addBefore(job, drop.id, dropped)
-        repo.deleteArea(job, drop.id)
-        assertThat(repo.observePairs(job).first().map { it.areaName }).containsExactly("Keep")
-        assertThat(kept.file.exists()).isTrue()
-        assertThat(dropped.file.exists()).isFalse()
+        repo.deleteArea(drop.id)
+        assertThat(repo.observePairs(job).first().map { it.areaName }).containsExactly("Keep", null).inOrder()
+        assertThat(dropped.file.exists()).isTrue()
+    }
+
+    @Test fun `befores need no label, and a label can be added, changed or cleared later`() = runTest {
+        val job = repo.createJob("A", null, null)
+        val pair = repo.addBefore(job, null, shot())
+        assertThat(repo.observePair(pair).first()!!.areaName).isNull()
+
+        val patio = repo.addArea(job, "Patio")
+        repo.setPairArea(pair, patio.id)
+        assertThat(repo.observePair(pair).first()!!.areaName).isEqualTo("Patio")
+
+        repo.setPairArea(pair, null)
+        assertThat(repo.observePair(pair).first()!!.areaName).isNull()
+        assertThat(repo.observeSummaries().first().single().pairCount).isEqualTo(1)
+    }
+
+    @Test fun `pairs list in shooting order across labels`() = runTest {
+        val job = repo.createJob("A", null, null)
+        val b = repo.addArea(job, "B")
+        val p1 = repo.addBefore(job, b.id, shot())
+        val p2 = repo.addBefore(job, null, shot())
+        val p3 = repo.addBefore(job, b.id, shot())
+        assertThat(repo.observePairs(job).first().map { it.pair.id }).containsExactly(p1, p2, p3).inOrder()
     }
 
     @Test fun `deleting a job deletes everything on disk`() = runTest {

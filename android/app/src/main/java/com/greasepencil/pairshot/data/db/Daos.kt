@@ -97,13 +97,15 @@ interface PairDao {
         """
         SELECT p.*, a.name AS areaName, a.position AS areaPosition,
                b.fileName AS beforeFile, b.zoomRatio AS beforeZoom, b.uprightRotation AS beforeRotation,
-               af.fileName AS afterFile, af.uprightRotation AS afterRotation
+               b.width AS beforeWidth, b.height AS beforeHeight,
+               af.fileName AS afterFile, af.uprightRotation AS afterRotation,
+               af.width AS afterWidth, af.height AS afterHeight
         FROM pairs p
-        JOIN areas a ON a.id = p.areaId
+        LEFT JOIN areas a ON a.id = p.areaId
         JOIN photos b ON b.id = p.beforePhotoId
         LEFT JOIN photos af ON af.id = p.afterPhotoId
         WHERE p.jobId = :jobId
-        ORDER BY a.position, p.position
+        ORDER BY p.createdAt
         """
     )
     fun observeForJob(jobId: String): Flow<List<PairRow>>
@@ -112,9 +114,11 @@ interface PairDao {
         """
         SELECT p.*, a.name AS areaName, a.position AS areaPosition,
                b.fileName AS beforeFile, b.zoomRatio AS beforeZoom, b.uprightRotation AS beforeRotation,
-               af.fileName AS afterFile, af.uprightRotation AS afterRotation
+               b.width AS beforeWidth, b.height AS beforeHeight,
+               af.fileName AS afterFile, af.uprightRotation AS afterRotation,
+               af.width AS afterWidth, af.height AS afterHeight
         FROM pairs p
-        JOIN areas a ON a.id = p.areaId
+        LEFT JOIN areas a ON a.id = p.areaId
         JOIN photos b ON b.id = p.beforePhotoId
         LEFT JOIN photos af ON af.id = p.afterPhotoId
         WHERE p.id = :id
@@ -125,8 +129,8 @@ interface PairDao {
     @Query("SELECT * FROM pairs WHERE id = :id")
     suspend fun get(id: String): PairEntity?
 
-    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM pairs WHERE areaId = :areaId")
-    suspend fun nextPosition(areaId: String): Int
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM pairs WHERE jobId = :jobId AND areaId IS :areaId")
+    suspend fun nextPosition(jobId: String, areaId: String?): Int
 
     @Insert
     suspend fun insert(pair: PairEntity)

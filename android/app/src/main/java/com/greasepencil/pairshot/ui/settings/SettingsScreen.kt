@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -36,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,6 +47,7 @@ import com.greasepencil.pairshot.BuildConfig
 import com.greasepencil.pairshot.brand.PromiseLine
 import com.greasepencil.pairshot.brand.StudioLockup
 import com.greasepencil.pairshot.data.prefs.AppSettings
+import com.greasepencil.pairshot.data.prefs.GhostMode
 import com.greasepencil.pairshot.data.prefs.SettingsStore
 import com.greasepencil.pairshot.domain.Trade
 import com.greasepencil.pairshot.ui.theme.Mono
@@ -65,7 +67,10 @@ class SettingsViewModel @Inject constructor(private val store: SettingsStore) : 
     fun setName(n: String) = viewModelScope.launch { store.setBusinessName(n) }
     fun setTrade(t: Trade) = viewModelScope.launch { store.setTrade(t) }
     fun setTemplate(t: String) = viewModelScope.launch { store.setTemplate(t) }
-    fun setGhost(o: Float, e: Boolean) = viewModelScope.launch { store.setGhost(o, e) }
+    fun setGhost(o: Float, m: GhostMode) = viewModelScope.launch { store.setGhost(o, m) }
+    fun setPhone(v: String) = viewModelScope.launch { store.setBusinessPhone(v) }
+    fun setReview(v: String) = viewModelScope.launch { store.setReviewUrl(v) }
+    fun setBooking(v: String) = viewModelScope.launch { store.setBookingUrl(v) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -76,8 +81,14 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
     // Text fields keep their own state and save as you type, so the cursor never jumps.
     var name by remember { mutableStateOf(s.businessName) }
     var template by remember { mutableStateOf(s.messageTemplate) }
-    var opacity by remember { mutableFloatStateOf(s.ghostOpacity) }
+    var strength by remember { mutableFloatStateOf(s.ghostStrength) }
+    var phone by remember { mutableStateOf(s.businessPhone) }
+    var review by remember { mutableStateOf(s.reviewUrl) }
+    var booking by remember { mutableStateOf(s.bookingUrl) }
     LaunchedEffect(name) { if (name != s.businessName) vm.setName(name) }
+    LaunchedEffect(phone) { if (phone != s.businessPhone) vm.setPhone(phone) }
+    LaunchedEffect(review) { if (review != s.reviewUrl) vm.setReview(review) }
+    LaunchedEffect(booking) { if (booking != s.bookingUrl) vm.setBooking(booking) }
     LaunchedEffect(template) { if (template != s.messageTemplate) vm.setTemplate(template) }
 
     Scaffold(
@@ -100,6 +111,23 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                     FilterChip(selected = s.trade == t, onClick = { vm.setTrade(t) }, label = { Text(t.label) })
                 }
             }
+            Text("CLIENT PAGE BUTTONS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Each one shows on the client's page only if you fill it in.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                phone, { phone = it }, label = { Text("Business phone (Call button)") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                review, { review = it }, label = { Text("Google review link (Leave a review)") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                booking, { booking = it }, label = { Text("Booking link (Book again)") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.fillMaxWidth(),
+            )
             OutlinedTextField(
                 template, { template = it },
                 label = { Text("Message to the client") },
@@ -109,23 +137,29 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
 
             HorizontalDivider()
             Text("CAMERA", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("How strong the before shows when you shoot the after: ${(opacity * 100).toInt()}%")
-            Slider(
-                value = opacity,
-                onValueChange = { opacity = it },
-                onValueChangeFinished = { vm.setGhost(opacity, s.ghostEdges) },
-                valueRange = 0.1f..0.9f,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Start with outline")
-                    Text(
-                        "Shows only the edges of the before. Easier to see in bright sun.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Text("When you shoot an after, show the before as")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostMode.entries.forEach { m ->
+                    FilterChip(selected = s.ghostMode == m, onClick = { vm.setGhost(strength, m) }, label = { Text(m.label) })
                 }
-                Switch(checked = s.ghostEdges, onCheckedChange = { vm.setGhost(opacity, it) })
+            }
+            Text(
+                when (s.ghostMode) {
+                    GhostMode.OUTLINE -> "Red edges of the before. Easiest to see in bright sun."
+                    GhostMode.PHOTO -> "The before, see-through, over the camera."
+                    GhostMode.OFF -> "Nothing over the camera. Hold Peek to check the before."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (s.ghostMode != GhostMode.OFF) {
+                Text("Strength: ${(strength * 100).toInt()}%")
+                Slider(
+                    value = strength,
+                    onValueChange = { strength = it },
+                    onValueChangeFinished = { vm.setGhost(strength, s.ghostMode) },
+                    valueRange = 0.1f..1f,
+                )
             }
 
             Spacer(Modifier.height(32.dp))

@@ -2,6 +2,9 @@ package com.greasepencil.pairshot.ui.job
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +29,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -39,6 +44,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +74,7 @@ import com.greasepencil.pairshot.data.db.AreaEntity
 import com.greasepencil.pairshot.data.db.JobEntity
 import com.greasepencil.pairshot.data.db.PairRow
 import com.greasepencil.pairshot.data.repo.JobRepository
+import com.greasepencil.pairshot.data.repo.PhotoImporter
 import com.greasepencil.pairshot.domain.AfterQueue
 import com.greasepencil.pairshot.ui.components.PhotoImage
 import com.greasepencil.pairshot.ui.nav.JobRoute
@@ -77,7 +86,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class AreaSection(val area: AreaEntity, val pairs: List<PairRow>)
+/** A label and its pairs; [area] null is the "No label" group. */
+data class AreaSection(val area: AreaEntity?, val pairs: List<PairRow>) {
+    val key get() = area?.id ?: "none"
+    val title get() = area?.name ?: "No label"
+}
 
 data class JobState(
     val loaded: Boolean = false,
@@ -85,10 +98,15 @@ data class JobState(
     val sections: List<AreaSection> = emptyList(),
     val pending: Int = 0,
     val total: Int = 0,
+    val completePairs: Int = 0,
 )
 
 @HiltViewModel
-class JobViewModel @Inject constructor(handle: SavedStateHandle, private val repo: JobRepository) : ViewModel() {
+class JobViewModel @Inject constructor(
+    handle: SavedStateHandle,
+    private val repo: JobRepository,
+    private val importer: PhotoImporter,
+) : ViewModel() {
     val jobId = handle.toRoute<JobRoute>().jobId
 
     val state: StateFlow<JobState> = combine(
@@ -98,14 +116,18 @@ class JobViewModel @Inject constructor(handle: SavedStateHandle, private val rep
         JobState(
             loaded = true,
             job = job,
-            sections = areas.map { AreaSection(it, byArea[it.id].orEmpty()) },
+            sections = listOfNotNull(
+                byArea[null]?.let { AreaSection(null, it) },
+            ) + areas.map { AreaSection(it, byArea[it.id].orEmpty()) },
             pending = AfterQueue.pending(pairs).size,
             total = pairs.size,
+            completePairs = pairs.count { !it.needsAfter && !it.pair.hidden },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), JobState())
 
     fun renameArea(id: String, name: String) = viewModelScope.launch { if (name.isNotBlank()) repo.renameArea(id, name) }
-    fun deleteArea(id: String) = viewModelScope.launch { repo.deleteArea(jobId, id) }
+    fun deleteArea(id: String) = viewModelScope.launch { repo.deleteArea(id) }
+    fun import(uris: List<Uri>, done: (Int) -> Unit) = viewModelScope.launch { done(importer.importBefores(jobId, uris)) }
     fun deleteJob(done: () -> Unit) = viewModelScope.launch { repo.deleteJob(jobId); done() }
 }
 
@@ -116,8 +138,21 @@ fun JobScreen(
     onCamera: (after: Boolean, pairId: String?) -> Unit,
     onOpenPair: (String) -> Unit,
     onEdit: () -> Unit,
+    onPreview: () -> Unit,
     vm: JobViewModel = hiltViewModel(),
 ) {
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { uris ->
+        if (uris.isNotEmpty()) vm.import(uris) { n ->
+            scope.launch {
+                snackbar.showSnackbar(
+                    if (n == uris.size) "Added $n ${if (n == 1) "photo" else "photos"} as befores."
+                    else "Added $n of ${uris.size}. The rest couldn't be read.",
+                )
+            }
+        }
+    }
     val s by vm.state.collectAsStateWithLifecycle()
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -139,6 +174,14 @@ fun JobScreen(
                         IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More") }
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
+                                text = { Text("Add photos from gallery") },
+                                leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, null) },
+                                onClick = {
+                                    menu = false
+                                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Delete job") },
                                 leadingIcon = { Icon(Icons.Outlined.Delete, null) },
                                 onClick = { menu = false; confirmDelete = true },
@@ -148,6 +191,7 @@ fun JobScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
@@ -173,16 +217,25 @@ fun JobScreen(
                     }
                 }
             }
+            if (s.completePairs > 0) {
+                item {
+                    OutlinedButton(onClick = onPreview, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                        Icon(Icons.Outlined.Language, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Preview the client page")
+                    }
+                }
+            }
             if (s.total == 0) {
                 item {
                     Text(
-                        "No photos yet. Tap Before, pick an area, and shoot.",
+                        "No photos yet. Tap Before and shoot. Labels like \"Driveway\" are optional.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 24.dp),
                     )
                 }
             }
-            items(s.sections, key = { it.area.id }) { section ->
+            items(s.sections, key = { it.key }) { section ->
                 AreaBlock(
                     section,
                     onOpenPair = onOpenPair,
@@ -206,7 +259,7 @@ fun JobScreen(
         var name by remember(area.id) { mutableStateOf(area.name) }
         AlertDialog(
             onDismissRequest = { renaming = null },
-            title = { Text("Rename area") },
+            title = { Text("Rename label") },
             text = { OutlinedTextField(name, { name = it }, singleLine = true) },
             confirmButton = { TextButton(onClick = { vm.renameArea(area.id, name); renaming = null }) { Text("Save") } },
             dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel") } },
@@ -215,9 +268,9 @@ fun JobScreen(
     deletingArea?.let { section ->
         AlertDialog(
             onDismissRequest = { deletingArea = null },
-            title = { Text("Delete ${section.area.name}?") },
-            text = { Text(if (section.pairs.isEmpty()) "It has no photos." else "Its ${section.pairs.size} pairs are deleted too.") },
-            confirmButton = { TextButton(onClick = { vm.deleteArea(section.area.id); deletingArea = null }) { Text("Delete") } },
+            title = { Text("Remove the label \"${section.title}\"?") },
+            text = { Text(if (section.pairs.isEmpty()) "It has no photos." else "Its ${section.pairs.size} pairs stay, without a label.") },
+            confirmButton = { TextButton(onClick = { section.area?.let { vm.deleteArea(it.id) }; deletingArea = null }) { Text("Remove") } },
             dismissButton = { TextButton(onClick = { deletingArea = null }) { Text("Keep") } },
         )
     }
@@ -260,17 +313,26 @@ private fun AreaBlock(
     var menu by remember { mutableStateOf(false) }
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(section.area.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(
+                section.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (section.area == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
             val done = section.pairs.count { !it.needsAfter }
             if (section.pairs.isNotEmpty()) {
                 Text("$done/${section.pairs.size}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "Area options") }
-                DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; onRename() })
-                    DropdownMenuItem(text = { Text("Delete area") }, onClick = { menu = false; onDelete() })
+            if (section.area != null) {
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "Label options") }
+                    DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text("Rename label") }, onClick = { menu = false; onRename() })
+                        DropdownMenuItem(text = { Text("Remove label") }, onClick = { menu = false; onDelete() })
+                    }
                 }
+            } else {
+                Spacer(Modifier.height(48.dp))
             }
         }
         section.pairs.chunked(2).forEach { row ->

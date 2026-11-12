@@ -12,6 +12,7 @@ import com.greasepencil.pairshot.ui.job.JobScreen
 import com.greasepencil.pairshot.ui.job.NewJobScreen
 import com.greasepencil.pairshot.ui.onboarding.OnboardingScreen
 import com.greasepencil.pairshot.ui.pair.PairScreen
+import com.greasepencil.pairshot.ui.preview.PreviewScreen
 import com.greasepencil.pairshot.ui.settings.SettingsScreen
 
 @Composable
@@ -47,6 +48,7 @@ fun AppNav(onboarded: Boolean) {
                 onCamera = { after, pairId -> nav.navigate(CameraRoute(jobId, after, pairId)) },
                 onOpenPair = { nav.navigate(PairRoute(it)) },
                 onEdit = { nav.navigate(NewJobRoute(editJobId = jobId)) },
+                onPreview = { nav.navigate(PreviewRoute(jobId)) },
             )
         }
         composable<CameraRoute> { CameraScreen(onClose = { nav.popBackStack() }) }
@@ -56,6 +58,7 @@ fun AppNav(onboarded: Boolean) {
                 onRetakeAfter = { jobId, pairId -> nav.navigate(CameraRoute(jobId, after = true, pairId = pairId)) },
             )
         }
+        composable<PreviewRoute> { PreviewScreen(onBack = { nav.popBackStack() }) }
         composable<SettingsRoute> { SettingsScreen(onBack = { nav.popBackStack() }) }
     }
 }

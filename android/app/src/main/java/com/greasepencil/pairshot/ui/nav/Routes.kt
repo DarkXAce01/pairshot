@@ -9,3 +9,4 @@ import kotlinx.serialization.Serializable
 @Serializable data class CameraRoute(val jobId: String, val after: Boolean, val pairId: String? = null)
 @Serializable data class PairRoute(val pairId: String)
 @Serializable data object SettingsRoute
+@Serializable data class PreviewRoute(val jobId: String)

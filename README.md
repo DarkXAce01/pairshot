@@ -8,12 +8,15 @@ By Grease Pencil Studio. The full plan is in [PLAN.md](PLAN.md).
 ## Status
 
 **Phase 1 (offline core) — in progress.** Works today, fully offline:
-- Jobs (create, edit, delete, search), areas per job with suggested names per trade
-- Before camera: pick an area, shoot; volume keys work as the shutter
-- After camera: walks every before that still needs its after, with the before shown as a
-  see-through ghost or a red outline, hold-to-peek, and the before's zoom restored
-- Pairs: slider compare, make cover, hide from client, swap, retake, delete
+- Jobs (create, edit, delete, search)
+- Before camera: just shoot; labels ("Driveway") are optional and can be added or changed later
+- After camera: walks every before that still needs its after, in shooting order. The before shows
+  as a red outline (default), a see-through photo, or nothing (Off); hold to peek; zoom restored
+- Volume keys work as the shutter
+- Pairs: slider compare, label, make cover, hide from client, swap, retake, delete
+- Import from the gallery: befores in bulk, or a single after for a pair (system Photo Picker)
 - Share one pair as a single side-by-side or stacked image
+- Client page preview: the exact page the client will get, built on the phone
 
 Not built yet: client gallery links (Phase 2, Cloudflare), CRM (Phase 3), Pro (Phase 3).
 
@@ -33,11 +36,17 @@ Needs JDK 17+ and the Android SDK with platform 36. The debug build installs as
 
 ```
 cd android
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest :app:lintDebug
+
+cd shared/gallery
+npm ci && npm test
 ```
 
-JVM unit tests for the pure logic (after queue, area suggestions, home ordering, edge outline,
-collage layout, rotation, scheduling) plus Robolectric tests of the database and file handling.
+- JVM unit tests for the pure logic (after queue, label suggestions, home ordering, edge outline,
+  collage layout, rotation, scheduling, client page data)
+- Robolectric tests of the database, files and every schema migration
+- The client page template run in a simulated browser (rendering, escaping, links, slider)
+- Android lint (fails the build on errors)
 CI runs them and builds the APK on every push (`.github/workflows/android.yml`); the APK is
 attached to each run as an artifact.
 
@@ -45,6 +54,7 @@ attached to each run as an artifact.
 
 ```
 android/              the app (Kotlin, Jetpack Compose, Room, CameraX, Hilt)
+shared/gallery/       the client page template, used by the app preview and (soon) the server
 docs/grease-pencil/   Grease Pencil Studio signature kit (rules, loop, fonts, logo)
 PLAN.md               the product and build plan
 ```

@@ -4,23 +4,19 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class AfterQueueTest {
-    // Shot order: Driveway (area 0) p1, p2; Patio (area 1) p3. Rows arrive shuffled on purpose.
+    // Shot in this order: p1 (no label), p2 (Driveway), p3 (no label). Rows arrive shuffled on purpose.
     private val rows = listOf(
-        pairRow("p3", areaPosition = 1, position = 0),
-        pairRow("p2", areaPosition = 0, position = 1),
-        pairRow("p1", areaPosition = 0, position = 0),
+        pairRow("p3", shotAt = 3),
+        pairRow("p2", shotAt = 2, areaPosition = 0),
+        pairRow("p1", shotAt = 1),
     )
 
-    @Test fun `pending follows shooting order`() {
+    @Test fun `pending follows shooting order, labelled or not`() {
         assertThat(AfterQueue.pending(rows).map { it.pair.id }).containsExactly("p1", "p2", "p3").inOrder()
     }
 
     @Test fun `done and hidden pairs are skipped`() {
-        val r = listOf(
-            pairRow("p1", 0, 0, hasAfter = true),
-            pairRow("p2", 0, 1, hidden = true),
-            pairRow("p3", 1, 0),
-        )
+        val r = listOf(pairRow("p1", 1, hasAfter = true), pairRow("p2", 2, hidden = true), pairRow("p3", 3))
         assertThat(AfterQueue.pending(r).map { it.pair.id }).containsExactly("p3")
     }
 
@@ -33,22 +29,22 @@ class AfterQueueTest {
     }
 
     @Test fun `preferred pair that is already done falls back to the queue`() {
-        val r = rows.map { if (it.pair.id == "p3") pairRow("p3", 1, 0, hasAfter = true) else it }
+        val r = listOf(pairRow("p1", 1), pairRow("p3", 3, hasAfter = true))
         assertThat(AfterQueue.next(r, preferredId = "p3")?.pair?.id).isEqualTo("p1")
     }
 
-    @Test fun `after finishing one, moves on to the next in order`() {
-        val r = listOf(pairRow("p1", 0, 0), pairRow("p2", 0, 1, hasAfter = true), pairRow("p3", 1, 0))
+    @Test fun `after finishing one, moves on to the next shot`() {
+        val r = listOf(pairRow("p1", 1), pairRow("p2", 2, hasAfter = true), pairRow("p3", 3))
         assertThat(AfterQueue.next(r, justFinishedId = "p2")?.pair?.id).isEqualTo("p3")
     }
 
     @Test fun `wraps round to earlier pairs that were skipped`() {
-        val r = listOf(pairRow("p1", 0, 0), pairRow("p2", 0, 1), pairRow("p3", 1, 0, hasAfter = true))
+        val r = listOf(pairRow("p1", 1), pairRow("p2", 2), pairRow("p3", 3, hasAfter = true))
         assertThat(AfterQueue.next(r, justFinishedId = "p3")?.pair?.id).isEqualTo("p1")
     }
 
     @Test fun `null when every before has its after`() {
-        val r = rows.map { pairRow(it.pair.id, it.areaPosition, it.pair.position, hasAfter = true) }
+        val r = rows.map { pairRow(it.pair.id, it.pair.createdAt, hasAfter = true) }
         assertThat(AfterQueue.next(r)).isNull()
     }
 

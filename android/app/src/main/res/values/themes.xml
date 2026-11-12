@@ -2,7 +2,4 @@
     <style name="Theme.Pairshot" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/paper</item>
     </style>
-    <color name="paper">#F2EFE9</color>
-    <color name="ink">#1C1B19</color>
-    <color name="pencil_red">#D4432A</color>
 </resources>

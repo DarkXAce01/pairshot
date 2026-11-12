@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.greasepencil.pairshot.data.db.AreaEntity
 import com.greasepencil.pairshot.data.db.PairRow
+import com.greasepencil.pairshot.data.prefs.GhostMode
 import com.greasepencil.pairshot.data.prefs.SettingsStore
 import com.greasepencil.pairshot.data.repo.CapturedPhoto
 import com.greasepencil.pairshot.data.repo.JobRepository
@@ -38,14 +39,15 @@ data class CameraUi(
     val loaded: Boolean = false,
     val after: Boolean = false,
     val areas: List<AreaEntity> = emptyList(),
+    /** The label new befores get; null = no label. */
     val selectedAreaId: String? = null,
     /** After mode: the pair being shot now, or null when the queue is done. */
     val target: PairRow? = null,
     val pendingCount: Int = 0,
     val shotsThisSession: Int = 0,
     val lastShot: LastShot? = null,
-    val ghostOpacity: Float = 0.35f,
-    val ghostEdges: Boolean = false,
+    val ghostStrength: Float = 0.5f,
+    val ghostMode: GhostMode = GhostMode.OUTLINE,
     val showAreaPicker: Boolean = false,
     val presets: List<String> = emptyList(),
     val error: String? = null,
@@ -62,31 +64,32 @@ class CameraViewModel @Inject constructor(
     val jobId = route.jobId
 
     private val local = MutableStateFlow(
-        Local(selectedAreaId = handle.get<String>("area"), targetId = route.pairId),
+        Local(targetId = route.pairId),
     )
 
     private data class Local(
-        val selectedAreaId: String? = null,
+        /** The label new befores get; null = no label. */
+    val selectedAreaId: String? = null,
         val targetId: String? = null,
         val lastFinishedId: String? = null,
         val shots: Int = 0,
         val lastShot: LastShot? = null,
         val showAreaPicker: Boolean = false,
         val presets: List<String> = emptyList(),
-        val ghostOverride: Pair<Float, Boolean>? = null,
+        val ghostOverride: Pair<Float, GhostMode>? = null,
         val error: String? = null,
     )
 
     val ui: StateFlow<CameraUi> = combine(
         repo.observeAreas(jobId), repo.observePairs(jobId), settingsStore.settings, local,
     ) { areas, pairs, settings, l ->
-        val selected = l.selectedAreaId?.takeIf { id -> areas.any { it.id == id } } ?: areas.lastOrNull()?.id
+        val selected = l.selectedAreaId?.takeIf { id -> areas.any { it.id == id } }
         val target = if (route.after) {
             // An explicit target (retake / shoot this one) wins even if it already has an after.
             pairs.firstOrNull { it.pair.id == l.targetId }
                 ?: AfterQueue.next(pairs, preferredId = null, justFinishedId = l.lastFinishedId)
         } else null
-        val ghost = l.ghostOverride ?: (settings.ghostOpacity to settings.ghostEdges)
+        val ghost = l.ghostOverride ?: (settings.ghostStrength to settings.ghostMode)
         CameraUi(
             loaded = true,
             after = route.after,
@@ -96,8 +99,8 @@ class CameraViewModel @Inject constructor(
             pendingCount = AfterQueue.pending(pairs).size,
             shotsThisSession = l.shots,
             lastShot = l.lastShot,
-            ghostOpacity = ghost.first,
-            ghostEdges = ghost.second,
+            ghostStrength = ghost.first,
+            ghostMode = ghost.second,
             showAreaPicker = l.showAreaPicker,
             presets = l.presets,
             error = l.error,
@@ -108,12 +111,10 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             val trade = settingsStore.settings.first().trade
             local.update { it.copy(presets = AreaPresets.rank(trade, repo.usedAreaNames())) }
-            // A brand-new job: ask for the first area straight away.
-            if (!route.after && repo.observeAreas(jobId).first().isEmpty()) local.update { it.copy(showAreaPicker = true) }
         }
     }
 
-    fun selectArea(id: String) = local.update { it.copy(selectedAreaId = id) }
+    fun selectArea(id: String?) = local.update { it.copy(selectedAreaId = id) }
     fun openAreaPicker() = local.update { it.copy(showAreaPicker = true) }
     fun closeAreaPicker() = local.update { it.copy(showAreaPicker = false) }
 
@@ -125,10 +126,9 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    fun setGhost(opacity: Float, edges: Boolean) = local.update { it.copy(ghostOverride = opacity to edges) }
+    fun setGhost(strength: Float, mode: GhostMode) = local.update { it.copy(ghostOverride = strength to mode) }
     fun saveGhostAsDefault() = viewModelScope.launch {
-        val (o, e) = ui.value.ghostOpacity to ui.value.ghostEdges
-        settingsStore.setGhost(o, e)
+        settingsStore.setGhost(ui.value.ghostStrength, ui.value.ghostMode)
     }
 
     fun clearError() = local.update { it.copy(error = null) }
@@ -160,8 +160,7 @@ class CameraViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    val area = requireNotNull(areaId) { "no area picked" }
-                    val pairId = repo.addBefore(jobId, area, shot)
+                    val pairId = repo.addBefore(jobId, areaId, shot)
                     local.update {
                         it.copy(shots = it.shots + 1, lastShot = LastShot.Before(pairId, file.name, uprightRotation))
                     }

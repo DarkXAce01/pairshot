@@ -72,7 +72,7 @@ object CollageExporter {
 
         val dir = File(context.cacheDir, "exports").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
-        val file = File(dir, "before-after-${pair.areaName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.jpg")
+        val file = File(dir, "before-after-${(pair.areaName ?: "photo").lowercase().replace(Regex("[^a-z0-9]+"), "-")}.jpg")
         file.outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 90, it) }
         out.recycle()
         file

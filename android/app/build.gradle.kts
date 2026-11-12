@@ -39,6 +39,12 @@ android {
         compose = true
         buildConfig = true
     }
+    sourceSets {
+        // The client page template is shared with the server; the app bundles it for the preview.
+        getByName("main").assets.srcDir("$rootDir/../shared/gallery")
+        // Room schemas, so the (Robolectric) migration tests can check every version. Debug builds only.
+        getByName("debug").assets.srcDir("$projectDir/schemas")
+    }
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
@@ -82,6 +88,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.exifinterface)
+    implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

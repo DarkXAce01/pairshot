@@ -5,20 +5,25 @@ import com.greasepencil.pairshot.data.db.JobSummary
 import com.greasepencil.pairshot.data.db.PairEntity
 import com.greasepencil.pairshot.data.db.PairRow
 
+/** A pair shot at time [shotAt]; [areaPosition] null = no label. */
 fun pairRow(
     id: String,
-    areaPosition: Int,
-    position: Int,
+    shotAt: Long,
     hasAfter: Boolean = false,
     hidden: Boolean = false,
-    area: String = "Area $areaPosition",
+    areaPosition: Int? = null,
+    area: String? = areaPosition?.let { "Area $it" },
+    cover: Boolean = false,
+    beforeRotation: Int = 0,
 ) = PairRow(
     pair = PairEntity(
-        id = id, jobId = "job", areaId = "a$areaPosition", beforePhotoId = "b-$id",
-        afterPhotoId = if (hasAfter) "af-$id" else null, position = position, hidden = hidden, createdAt = 0,
+        id = id, jobId = "job", areaId = areaPosition?.let { "a$it" }, beforePhotoId = "b-$id",
+        afterPhotoId = if (hasAfter) "af-$id" else null, position = 0, hidden = hidden, isCover = cover, createdAt = shotAt,
     ),
-    areaName = area, areaPosition = areaPosition, beforeFile = "b-$id.jpg", beforeZoom = 1f, beforeRotation = 0,
+    areaName = area, areaPosition = areaPosition, beforeFile = "b-$id.jpg", beforeZoom = 1f, beforeRotation = beforeRotation,
+    beforeWidth = 3000, beforeHeight = 4000,
     afterFile = if (hasAfter) "af-$id.jpg" else null, afterRotation = if (hasAfter) 0 else null,
+    afterWidth = if (hasAfter) 3000 else null, afterHeight = if (hasAfter) 4000 else null,
 )
 
 fun summary(

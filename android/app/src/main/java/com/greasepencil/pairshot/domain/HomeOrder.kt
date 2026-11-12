@@ -10,8 +10,8 @@ object HomeOrder {
     data class Sections(val today: List<JobSummary>, val recent: List<JobSummary>)
 
     fun sections(jobs: List<JobSummary>, now: Long, zone: ZoneId = ZoneId.systemDefault()): Sections {
-        val today = LocalDate.ofInstant(Instant.ofEpochMilli(now), zone)
-        fun isToday(ms: Long?) = ms != null && LocalDate.ofInstant(Instant.ofEpochMilli(ms), zone) == today
+        val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        fun isToday(ms: Long?) = ms != null && Instant.ofEpochMilli(ms).atZone(zone).toLocalDate() == today
         val (todays, others) = jobs.partition { isToday(it.job.scheduledAt) }
         return Sections(
             today = todays.sortedBy { it.job.scheduledAt },

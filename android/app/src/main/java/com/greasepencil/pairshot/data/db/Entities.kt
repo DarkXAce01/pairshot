@@ -63,14 +63,16 @@ data class PhotoEntity(
     tableName = "pairs",
     foreignKeys = [
         ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(AreaEntity::class, ["id"], ["areaId"], onDelete = ForeignKey.CASCADE),
+        // Deleting a label keeps its photos; they just lose the label.
+        ForeignKey(AreaEntity::class, ["id"], ["areaId"], onDelete = ForeignKey.SET_NULL),
     ],
     indices = [Index("jobId"), Index("areaId"), Index("beforePhotoId"), Index("afterPhotoId")],
 )
 data class PairEntity(
     @PrimaryKey val id: String,
     val jobId: String,
-    val areaId: String,
+    /** The label ("Driveway"). Optional: null means no label. */
+    val areaId: String? = null,
     val beforePhotoId: String,
     val afterPhotoId: String? = null,
     val position: Int,
@@ -82,13 +84,17 @@ data class PairEntity(
 /** A pair with what the screens need from its area and photos. */
 data class PairRow(
     @Embedded val pair: PairEntity,
-    val areaName: String,
-    val areaPosition: Int,
+    val areaName: String?,
+    val areaPosition: Int?,
     val beforeFile: String,
     val beforeZoom: Float,
     val beforeRotation: Int,
+    val beforeWidth: Int,
+    val beforeHeight: Int,
     val afterFile: String?,
     val afterRotation: Int?,
+    val afterWidth: Int?,
+    val afterHeight: Int?,
 ) {
     val needsAfter: Boolean get() = pair.afterPhotoId == null
 }

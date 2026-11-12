@@ -101,6 +101,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.greasepencil.pairshot.data.prefs.GhostMode
 import com.greasepencil.pairshot.domain.Rotation
 import com.greasepencil.pairshot.ui.components.PhotoImage
 import kotlinx.coroutines.delay
@@ -216,7 +217,6 @@ private fun CameraContent(vm: CameraViewModel, onClose: () -> Unit) {
         val pairId = s.target?.pair?.id
         when {
             camera == null -> Unit
-            !s.after && areaId == null -> vm.openAreaPicker()
             s.after && pairId == null -> Unit
             s.after && inFlight > 0 -> Unit // wait so the next after goes on the right pair
             inFlight >= 3 -> Unit
@@ -260,7 +260,7 @@ private fun CameraContent(vm: CameraViewModel, onClose: () -> Unit) {
                 AndroidView({ previewView }, Modifier.fillMaxSize())
                 var peeking by remember { mutableStateOf(false) }
                 if (ui.after && target != null) {
-                    Ghost(target.beforeFile, ui.ghostOpacity, ui.ghostEdges, peeking)
+                    Ghost(target.beforeFile, ui.ghostStrength, ui.ghostMode, peeking)
                 }
                 GestureLayer(camera, previewView)
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = flash.value)))
@@ -293,25 +293,32 @@ private fun TopRow(ui: CameraUi, onClose: () -> Unit) {
         Spacer(Modifier.weight(1f))
         val t = ui.target
         val info = if (ui.after) {
-            if (t != null) "${t.areaName} · ${ui.pendingCount} left" else ""
+            if (t != null) "${t.areaName ?: "No label"} · ${ui.pendingCount} left" else ""
         } else {
-            ui.areas.firstOrNull { it.id == ui.selectedAreaId }?.name ?: "Pick an area"
+            ui.areas.firstOrNull { it.id == ui.selectedAreaId }?.name ?: "No label"
         }
         Text(info, color = Muted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 12.dp))
     }
 }
 
 @Composable
-private fun Ghost(beforeFile: String, opacity: Float, edges: Boolean, peeking: Boolean) {
+private fun Ghost(beforeFile: String, strength: Float, mode: GhostMode, peeking: Boolean) {
     val context = LocalContext.current
-    if (edges && !peeking) {
-        val outline by produceState<ImageBitmap?>(null, beforeFile) { value = GhostLoader.outline(context, beforeFile) }
-        outline?.let {
-            Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+    when {
+        // Peeking always shows the real photo, even with the ghost off.
+        peeking -> PhotoImage(beforeFile, rotation = 0, modifier = Modifier.fillMaxSize())
+        mode == GhostMode.OUTLINE -> {
+            val outline by produceState<ImageBitmap?>(null, beforeFile) { value = GhostLoader.outline(context, beforeFile) }
+            outline?.let {
+                Image(
+                    it, contentDescription = null, contentScale = ContentScale.Crop,
+                    alpha = 0.35f + 0.65f * strength, modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
-    } else {
         // rotation 0: the before in the camera's own frame, exactly as its preview looked.
-        PhotoImage(beforeFile, rotation = 0, modifier = Modifier.fillMaxSize(), alpha = if (peeking) 1f else opacity)
+        mode == GhostMode.PHOTO -> PhotoImage(beforeFile, rotation = 0, modifier = Modifier.fillMaxSize(), alpha = strength * 0.8f)
+        else -> Unit
     }
 }
 
@@ -393,23 +400,32 @@ private fun GhostControls(ui: CameraUi, vm: CameraViewModel) {
     if (ui.target == null) {
         Spacer(Modifier.height(56.dp)); return
     }
-    Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("GHOST", color = Muted, style = MaterialTheme.typography.labelSmall)
-        Slider(
-            value = ui.ghostOpacity,
-            onValueChange = { vm.setGhost(it, ui.ghostEdges) },
-            onValueChangeFinished = { vm.saveGhostAsDefault() },
-            valueRange = 0.1f..0.9f,
-            enabled = !ui.ghostEdges,
-            colors = SliderDefaults.colors(inactiveTrackColor = Color(0xFF3A3835)),
-            modifier = Modifier.weight(1f).padding(horizontal = 12.dp).semantics { contentDescription = "Ghost strength" },
-        )
-        FilterChip(
-            selected = ui.ghostEdges,
-            onClick = { vm.setGhost(ui.ghostOpacity, !ui.ghostEdges); vm.saveGhostAsDefault() },
-            label = { Text("Outline") },
-            colors = FilterChipDefaults.filterChipColors(labelColor = Ink),
-        )
+    Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        GhostMode.entries.forEach { mode ->
+            FilterChip(
+                selected = ui.ghostMode == mode,
+                onClick = { vm.setGhost(ui.ghostStrength, mode); vm.saveGhostAsDefault() },
+                label = { Text(mode.label) },
+                colors = FilterChipDefaults.filterChipColors(labelColor = Ink),
+                modifier = Modifier.padding(end = 6.dp),
+            )
+        }
+        if (ui.ghostMode != GhostMode.OFF) {
+            Slider(
+                value = ui.ghostStrength,
+                onValueChange = { vm.setGhost(it, ui.ghostMode) },
+                onValueChangeFinished = { vm.saveGhostAsDefault() },
+                valueRange = 0.1f..1f,
+                colors = SliderDefaults.colors(inactiveTrackColor = Color(0xFF3A3835)),
+                modifier = Modifier.weight(1f).padding(start = 6.dp).semantics { contentDescription = "Ghost strength" },
+            )
+        } else {
+            Text(
+                "Shoot freely",
+                color = Muted, style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f).padding(start = 6.dp),
+            )
+        }
     }
 }
 
@@ -421,6 +437,14 @@ private fun AreaChips(ui: CameraUi, vm: CameraViewModel) {
         verticalAlignment = Alignment.CenterVertically,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
     ) {
+        item {
+            FilterChip(
+                selected = ui.selectedAreaId == null,
+                onClick = { vm.selectArea(null) },
+                label = { Text("No label") },
+                colors = FilterChipDefaults.filterChipColors(labelColor = Ink),
+            )
+        }
         items(ui.areas, key = { it.id }) { area ->
             FilterChip(
                 selected = area.id == ui.selectedAreaId,
@@ -432,7 +456,7 @@ private fun AreaChips(ui: CameraUi, vm: CameraViewModel) {
         item {
             AssistChip(
                 onClick = vm::openAreaPicker,
-                label = { Text("Area") },
+                label = { Text("Label") },
                 leadingIcon = { Icon(Icons.Filled.Add, null, tint = Ink) },
                 colors = AssistChipDefaults.assistChipColors(labelColor = Ink),
             )
@@ -486,7 +510,12 @@ private fun AreaPicker(ui: CameraUi, vm: CameraViewModel) {
     val existing = ui.areas.map { it.name.lowercase() }.toSet()
     ModalBottomSheet(onDismissRequest = vm::closeAreaPicker, sheetState = sheet) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
-            Text("Which area?", style = MaterialTheme.typography.headlineSmall)
+            Text("Add a label", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Optional. Photos you take next get this label, and the client sees it as a heading.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(12.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ui.presets.filter { it.lowercase() !in existing }.forEach { name ->

@@ -86,15 +86,23 @@ class JobRepository @Inject constructor(
 
     suspend fun renameArea(id: String, name: String) = areas.rename(id, name.trim())
 
-    suspend fun deleteArea(jobId: String, areaId: String) {
+    /** Deletes a label. Its pairs stay, unlabelled. */
+    suspend fun deleteArea(areaId: String) {
         areas.delete(areaId)
-        cleanOrphans(jobId)
+    }
+
+    /** Gives a pair a label, or removes it with null. */
+    suspend fun setPairArea(pairId: String, areaId: String?) {
+        val pair = pairs.get(pairId) ?: return
+        if (pair.areaId == areaId) return
+        pairs.update(pair.copy(areaId = areaId, position = pairs.nextPosition(pair.jobId, areaId)))
+        jobs.touch(pair.jobId, clock.now())
     }
 
     suspend fun usedAreaNames(): List<String> = areas.allNames()
 
-    /** A new before shot: becomes a new pair in [areaId] waiting for its after. Returns the pair id. */
-    suspend fun addBefore(jobId: String, areaId: String, shot: CapturedPhoto): String = db.withTransaction {
+    /** A new before shot: becomes a new pair (labelled [areaId], or unlabelled) waiting for its after. */
+    suspend fun addBefore(jobId: String, areaId: String?, shot: CapturedPhoto): String = db.withTransaction {
         photos.insert(shot.toEntity(jobId))
         val pairId = Ids.new()
         pairs.insert(
@@ -103,7 +111,7 @@ class JobRepository @Inject constructor(
                 jobId = jobId,
                 areaId = areaId,
                 beforePhotoId = shot.id,
-                position = pairs.nextPosition(areaId),
+                position = pairs.nextPosition(jobId, areaId),
                 createdAt = clock.now(),
             ),
         )
