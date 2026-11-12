@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "B4After"
+rootProject.name = "Pairshot"
 include(":app")

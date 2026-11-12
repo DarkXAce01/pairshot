@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.greasepencil.b4after"
+    namespace = "com.greasepencil.pairshot"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.greasepencil.b4after"
+        applicationId = "com.greasepencil.pairshot"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

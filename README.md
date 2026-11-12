@@ -27,7 +27,7 @@ cd android
 ```
 
 Needs JDK 17+ and the Android SDK with platform 36. The debug build installs as
-`com.greasepencil.b4after.debug`, next to any release build.
+`com.greasepencil.pairshot.debug`, next to any release build.
 
 ## Tests
 
