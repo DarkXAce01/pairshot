@@ -18,6 +18,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Where links are sent from. Empty in builds for now: set it in Settings → Cloud & CRM.
+        buildConfigField("String", "DEFAULT_SERVER_URL", "\"\"")
     }
 
     buildTypes {
@@ -28,6 +30,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+            // Lets a debug build talk to a local server over plain http (see src/debug/res/xml).
         }
     }
     compileOptions {
@@ -98,6 +101,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.room.testing)
+    testImplementation(libs.mockwebserver)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
 }

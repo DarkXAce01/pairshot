@@ -75,7 +75,7 @@ class SettingsViewModel @Inject constructor(private val store: SettingsStore) : 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(onBack: () -> Unit, onCloud: () -> Unit = {}, vm: SettingsViewModel = hiltViewModel()) {
     val loaded by vm.settings.collectAsStateWithLifecycle()
     val s = loaded ?: return
     // Text fields keep their own state and save as you type, so the cursor never jumps.
@@ -160,6 +160,11 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                     onValueChangeFinished = { vm.setGhost(strength, s.ghostMode) },
                     valueRange = 0.1f..1f,
                 )
+            }
+
+            Text("LINKS & CRM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            androidx.compose.material3.OutlinedButton(onClick = onCloud, modifier = Modifier.fillMaxWidth()) {
+                Text("Cloud & CRM: account, usage, Zapier, webhooks")
             }
 
             Spacer(Modifier.height(32.dp))

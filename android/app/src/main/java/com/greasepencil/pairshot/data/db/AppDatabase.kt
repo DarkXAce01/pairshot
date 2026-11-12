@@ -10,11 +10,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 class Converters {
     @TypeConverter fun sourceToString(s: JobSource): String = s.name
     @TypeConverter fun stringToSource(s: String): JobSource = JobSource.valueOf(s)
+    @TypeConverter fun sendStateToString(s: SendState): String = s.name
+    @TypeConverter fun stringToSendState(s: String): SendState = SendState.valueOf(s)
 }
 
 @Database(
-    entities = [JobEntity::class, AreaEntity::class, PhotoEntity::class, PairEntity::class],
-    version = 2,
+    entities = [JobEntity::class, AreaEntity::class, PhotoEntity::class, PairEntity::class, GalleryEntity::class],
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -23,6 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun areas(): AreaDao
     abstract fun photos(): PhotoDao
     abstract fun pairs(): PairDao
+    abstract fun galleries(): GalleryDao
 }
 
 /** v2: a pair's label (area) became optional, and deleting a label keeps its photos. */
@@ -48,3 +51,19 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_pairs_afterPhotoId` ON `pairs` (`afterPhotoId`)")
     }
 }
+
+/** v3: client links (galleries). */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `galleries` (`id` TEXT NOT NULL, `jobId` TEXT NOT NULL, `sendState` TEXT NOT NULL,
+               `error` TEXT, `url` TEXT, `remoteState` TEXT, `publishedAt` INTEGER, `expiresAt` INTEGER,
+               `firstViewedAt` INTEGER, `viewCount` INTEGER NOT NULL, `sentFingerprint` TEXT,
+               `shareWhenReady` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`),
+               FOREIGN KEY(`jobId`) REFERENCES `jobs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )""",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_galleries_jobId` ON `galleries` (`jobId`)")
+    }
+}
+
+val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)

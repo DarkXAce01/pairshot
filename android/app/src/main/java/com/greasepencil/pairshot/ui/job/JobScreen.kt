@@ -73,6 +73,18 @@ import androidx.navigation.toRoute
 import com.greasepencil.pairshot.data.db.AreaEntity
 import com.greasepencil.pairshot.data.db.JobEntity
 import com.greasepencil.pairshot.data.db.PairRow
+import android.content.Context
+import com.greasepencil.pairshot.data.cloud.CloudSession
+import com.greasepencil.pairshot.data.cloud.GallerySender
+import com.greasepencil.pairshot.data.db.SendState
+import com.greasepencil.pairshot.data.prefs.SettingsStore
+import com.greasepencil.pairshot.data.repo.Clock
+import com.greasepencil.pairshot.domain.ClientMessage
+import com.greasepencil.pairshot.work.SendWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.first
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.data.repo.PhotoImporter
 import com.greasepencil.pairshot.domain.AfterQueue
@@ -106,8 +118,58 @@ class JobViewModel @Inject constructor(
     handle: SavedStateHandle,
     private val repo: JobRepository,
     private val importer: PhotoImporter,
+    private val sender: GallerySender,
+    private val settings: SettingsStore,
+    private val cloud: CloudSession,
+    private val clock: Clock,
+    @ApplicationContext private val app: Context,
 ) : ViewModel() {
     val jobId = handle.toRoute<JobRoute>().jobId
+
+    /** A filled-in message to share, once the link is ready. */
+    private val shareEvents = Channel<String>(Channel.BUFFERED)
+    val shares = shareEvents.receiveAsFlow()
+
+    val link: StateFlow<LinkState> = combine(
+        repo.observeJob(jobId), repo.observePairs(jobId), sender.observe(jobId), settings.settings, cloud.state,
+    ) { job, pairs, g, s, c ->
+        val canSend = pairs.any { !it.needsAfter && !it.pair.hidden }
+        val changed = job != null && g?.sentFingerprint != null &&
+            GallerySender.fingerprint(job, pairs, s, c.isPro) != g.sentFingerprint
+        LinkState(g, changed, canSend, clock.now())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LinkState())
+
+    init {
+        viewModelScope.launch { runCatching { sender.refresh() } }
+        // The user tapped Send and is waiting: open the share sheet as soon as the link exists.
+        viewModelScope.launch {
+            sender.observe(jobId).collect { g ->
+                if (g != null && g.shareWhenReady && g.sendState == SendState.SENT && g.url != null) {
+                    sender.clearShareFlag(g.id)
+                    message()?.let { shareEvents.send(it) }
+                }
+            }
+        }
+    }
+
+    fun send() = viewModelScope.launch {
+        val first = link.value.gallery?.url == null || link.value.gallery?.remoteState in setOf("revoked", "expired")
+        sender.queue(jobId, shareWhenReady = first)
+        SendWorker.enqueue(app, jobId)
+    }
+
+    fun close() = viewModelScope.launch {
+        runCatching { sender.close(jobId) }.onFailure { shareEvents.send("!" + (it.message ?: "Couldn't close the link.")) }
+    }
+
+    /** The message for the client, with their first name, the service and the link filled in. */
+    suspend fun message(): String? {
+        val g = sender.observe(jobId).first() ?: return null
+        val url = g.url ?: return null
+        val job = repo.observeJob(jobId).first() ?: return url
+        val s = settings.settings.first()
+        return ClientMessage.fill(s.messageTemplate, job.clientName, job.service, url)
+    }
 
     val state: StateFlow<JobState> = combine(
         repo.observeJob(jobId), repo.observeAreas(jobId), repo.observePairs(jobId),
@@ -154,6 +216,24 @@ fun JobScreen(
         }
     }
     val s by vm.state.collectAsStateWithLifecycle()
+    val link by vm.link.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        vm.shares.collect { msg ->
+            if (msg.startsWith("!")) snackbar.showSnackbar(msg.drop(1)) else LinkActions.share(context, msg)
+        }
+    }
+    var confirmClose by remember { mutableStateOf(false) }
+    // Asked once, at the first Send: so a link that waits for signal can say when it has gone.
+    val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val send = {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        vm.send()
+        Unit
+    }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<AreaEntity?>(null) }
@@ -217,6 +297,20 @@ fun JobScreen(
                     }
                 }
             }
+            item {
+                LinkCard(
+                    link,
+                    clientPhone = job.clientPhone,
+                    onSend = send,
+                    onShare = { scope.launch { vm.message()?.let { LinkActions.share(context, it) } } },
+                    onText = { scope.launch { vm.message()?.let { m -> job.clientPhone?.let { LinkActions.text(context, it, m) } } } },
+                    onCopy = {
+                        link.gallery?.url?.let { LinkActions.copy(context, it) }
+                        scope.launch { snackbar.showSnackbar("Link copied.") }
+                    },
+                    onClose = { confirmClose = true },
+                )
+            }
             if (s.completePairs > 0) {
                 item {
                     OutlinedButton(onClick = onPreview, modifier = Modifier.fillMaxWidth().height(48.dp)) {
@@ -246,6 +340,15 @@ fun JobScreen(
         }
     }
 
+    if (confirmClose) {
+        AlertDialog(
+            onDismissRequest = { confirmClose = false },
+            title = { Text("Close this link?") },
+            text = { Text("Your client will see a short \"this page was closed\" note, and the photos are deleted from the server. They stay on this phone.") },
+            confirmButton = { TextButton(onClick = { confirmClose = false; vm.close() }) { Text("Close link") } },
+            dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Keep it") } },
+        )
+    }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },

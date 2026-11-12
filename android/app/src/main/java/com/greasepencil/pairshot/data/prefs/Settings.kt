@@ -37,8 +37,13 @@ data class AppSettings(
     }
 }
 
+/** Read-only view of the settings, for code that only needs to read them (and for tests). */
+interface SettingsSource {
+    val settings: Flow<AppSettings>
+}
+
 @Singleton
-class SettingsStore @Inject constructor(@ApplicationContext private val context: Context) {
+class SettingsStore @Inject constructor(@ApplicationContext private val context: Context) : SettingsSource {
     private object Keys {
         val onboarded = booleanPreferencesKey("onboarded")
         val businessName = stringPreferencesKey("business_name")
@@ -51,7 +56,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val booking = stringPreferencesKey("booking_url")
     }
 
-    val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
+    override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
             onboarded = p[Keys.onboarded] ?: false,
             businessName = p[Keys.businessName] ?: "",

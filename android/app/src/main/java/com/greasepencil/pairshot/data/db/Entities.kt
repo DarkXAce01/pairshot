@@ -107,3 +107,34 @@ data class JobSummary(
     val coverRotation: Int?,
     @ColumnInfo(name = "lastShotAt") val lastShotAt: Long?,
 )
+
+/** Where a job's client link is at. One job has at most one gallery (one link). */
+enum class SendState { QUEUED, SENDING, SENT, FAILED }
+
+@Entity(
+    tableName = "galleries",
+    foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index(value = ["jobId"], unique = true)],
+)
+data class GalleryEntity(
+    /** Made on the phone, so a send that is retried can never make two galleries. */
+    @PrimaryKey val id: String,
+    val jobId: String,
+    val sendState: SendState,
+    /** The server's refusal or problem, in words for the user. */
+    val error: String? = null,
+    val url: String? = null,
+    /** live, expired or revoked, as the server last said. */
+    val remoteState: String? = null,
+    val publishedAt: Long? = null,
+    val expiresAt: Long? = null,
+    val firstViewedAt: Long? = null,
+    val viewCount: Int = 0,
+    /** What the page looked like when it was last sent, to tell "changes not sent yet". */
+    val sentFingerprint: String? = null,
+    /** The user is waiting to share the link as soon as it's ready. */
+    val shareWhenReady: Boolean = false,
+    val updatedAt: Long,
+) {
+    val isLive: Boolean get() = url != null && remoteState == "live"
+}

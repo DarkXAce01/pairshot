@@ -10,3 +10,4 @@ import kotlinx.serialization.Serializable
 @Serializable data class PairRoute(val pairId: String)
 @Serializable data object SettingsRoute
 @Serializable data class PreviewRoute(val jobId: String)
+@Serializable data object CloudRoute

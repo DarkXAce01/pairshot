@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import com.greasepencil.pairshot.data.db.AppDatabase
 import com.greasepencil.pairshot.data.db.MIGRATION_1_2
+import com.greasepencil.pairshot.data.db.MIGRATION_2_3
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,5 +41,26 @@ class MigrationTest {
             assertThat(c.getInt(0)).isEqualTo(2)
             assertThat(c.getInt(1)).isEqualTo(2)
         }
+    }
+
+    @Test fun `v2 jobs survive v3, which adds client links`() {
+        helper.createDatabase("m3.db", 2).apply {
+            execSQL("INSERT INTO jobs (id, source, clientName, createdAt, updatedAt) VALUES ('j', 'MANUAL', 'Dana', 1, 1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m3.db", 3, true, MIGRATION_2_3)
+        db.execSQL("INSERT INTO galleries (id, jobId, sendState, viewCount, shareWhenReady, updatedAt) VALUES ('g', 'j', 'QUEUED', 0, 0, 1)")
+        db.query("SELECT clientName FROM jobs").use { c -> c.moveToFirst(); assertThat(c.getString(0)).isEqualTo("Dana") }
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL("DELETE FROM jobs WHERE id = 'j'")
+        db.query("SELECT COUNT(*) FROM galleries").use { c -> c.moveToFirst(); assertThat(c.getInt(0)).isEqualTo(0) }
+    }
+
+    @Test fun `a v1 phone updates straight to the newest version`() {
+        helper.createDatabase("m13.db", 1).apply {
+            execSQL("INSERT INTO jobs (id, source, clientName, createdAt, updatedAt) VALUES ('j', 'MANUAL', 'Dana', 1, 1)")
+            close()
+        }
+        helper.runMigrationsAndValidate("m13.db", 3, true, MIGRATION_1_2, MIGRATION_2_3)
     }
 }

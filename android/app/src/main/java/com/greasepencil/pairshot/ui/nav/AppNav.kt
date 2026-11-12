@@ -1,6 +1,7 @@
 package com.greasepencil.pairshot.ui.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,9 +15,10 @@ import com.greasepencil.pairshot.ui.onboarding.OnboardingScreen
 import com.greasepencil.pairshot.ui.pair.PairScreen
 import com.greasepencil.pairshot.ui.preview.PreviewScreen
 import com.greasepencil.pairshot.ui.settings.SettingsScreen
+import com.greasepencil.pairshot.ui.cloud.CloudScreen
 
 @Composable
-fun AppNav(onboarded: Boolean) {
+fun AppNav(onboarded: Boolean, openJob: String? = null, onOpenedJob: () -> Unit = {}) {
     val nav = rememberNavController()
     // Fixed at first composition: finishing onboarding navigates, it doesn't rebuild the graph.
     val start: Any = remember { if (onboarded) HomeRoute else OnboardingRoute }
@@ -59,6 +61,16 @@ fun AppNav(onboarded: Boolean) {
             )
         }
         composable<PreviewRoute> { PreviewScreen(onBack = { nav.popBackStack() }) }
-        composable<SettingsRoute> { SettingsScreen(onBack = { nav.popBackStack() }) }
+        composable<SettingsRoute> {
+            SettingsScreen(onBack = { nav.popBackStack() }, onCloud = { nav.navigate(CloudRoute) })
+        }
+        composable<CloudRoute> { CloudScreen(onBack = { nav.popBackStack() }) }
+    }
+    // After the NavHost, so the graph exists before we navigate.
+    LaunchedEffect(openJob) {
+        if (openJob != null && onboarded) {
+            nav.navigate(JobRoute(openJob)) { popUpTo(HomeRoute) }
+            onOpenedJob()
+        }
     }
 }

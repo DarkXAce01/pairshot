@@ -31,6 +31,12 @@ interface JobDao {
     @Query("SELECT * FROM jobs WHERE id = :id")
     suspend fun get(id: String): JobEntity?
 
+    @Query("SELECT * FROM jobs WHERE externalId = :externalId")
+    suspend fun byExternalId(externalId: String): JobEntity?
+
+    @Query("SELECT COUNT(*) FROM pairs WHERE jobId = :jobId")
+    suspend fun pairCount(jobId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(job: JobEntity)
 
@@ -149,4 +155,31 @@ interface PairDao {
         clearCover(jobId)
         get(pairId)?.let { update(it.copy(isCover = true)) }
     }
+}
+
+@Dao
+interface GalleryDao {
+    @Query("SELECT * FROM galleries WHERE jobId = :jobId")
+    fun observeForJob(jobId: String): Flow<GalleryEntity?>
+
+    @Query("SELECT * FROM galleries WHERE jobId = :jobId")
+    suspend fun forJob(jobId: String): GalleryEntity?
+
+    @Query("SELECT * FROM galleries WHERE id = :id")
+    suspend fun get(id: String): GalleryEntity?
+
+    @Query("SELECT * FROM galleries")
+    suspend fun all(): List<GalleryEntity>
+
+    @Query("SELECT * FROM galleries")
+    fun observeAll(): Flow<List<GalleryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(g: GalleryEntity)
+
+    @Query("DELETE FROM galleries WHERE id = :id")
+    suspend fun delete(id: String)
+
+    @Query("DELETE FROM galleries")
+    suspend fun deleteAll()
 }

@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class HomeState(
@@ -63,7 +64,16 @@ data class HomeState(
 )
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(repo: JobRepository, clock: Clock) : ViewModel() {
+class HomeViewModel @Inject constructor(
+    repo: JobRepository,
+    clock: Clock,
+    crm: com.greasepencil.pairshot.data.cloud.CrmSync,
+) : ViewModel() {
+    init {
+        // New jobs from the CRM (Pro). Quiet: offline or free just means nothing happens.
+        viewModelScope.launch { runCatching { crm.pull() } }
+    }
+
     val query = MutableStateFlow("")
     val state: StateFlow<HomeState> = combine(repo.observeSummaries(), query) { jobs, q ->
         val filtered = jobs.filter { HomeOrder.matches(it, q) }
