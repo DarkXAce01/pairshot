@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Photos are big; keep them out of Google's auto backup. Settings and the job list are backed up. -->
+<full-backup-content>
+    <exclude domain="file" path="photos/" />
+</full-backup-content>

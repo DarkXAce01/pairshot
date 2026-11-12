@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- before half (dark) and after half (light), a rounded square in the middle -->
+    <path android:fillColor="#55524C" android:pathData="M38,38h16v32h-16a4,4 0 0 1 -4,-4v-24a4,4 0 0 1 4,-4z" />
+    <path android:fillColor="#FFFFFF" android:strokeColor="#55524C" android:strokeWidth="1.5"
+        android:pathData="M54,38h16a4,4 0 0 1 4,4v24a4,4 0 0 1 -4,4h-16z" />
+    <!-- the Grease Pencil loop, scaled round the square -->
+    <group android:translateX="24" android:translateY="22" android:scaleX="1.0" android:scaleY="1.0">
+        <path android:fillColor="#00000000" android:strokeColor="#D4432A" android:strokeWidth="3.4"
+            android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M20,7.5C37,3 53,9 55,26C57,44 46,60 28,61C12,62 2,50 4,32C5.5,19 13,11 26,8.5" />
+    </group>
+</vector>

@@ -1,0 +1,146 @@
+package com.greasepencil.b4after.ui.settings
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import com.greasepencil.b4after.BuildConfig
+import com.greasepencil.b4after.brand.PromiseLine
+import com.greasepencil.b4after.brand.StudioLockup
+import com.greasepencil.b4after.data.prefs.AppSettings
+import com.greasepencil.b4after.data.prefs.SettingsStore
+import com.greasepencil.b4after.domain.Trade
+import com.greasepencil.b4after.ui.theme.Mono
+import com.greasepencil.b4after.ui.theme.studioFonts
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(private val store: SettingsStore) : ViewModel() {
+    val settings: StateFlow<AppSettings?> = store.settings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun setName(n: String) = viewModelScope.launch { store.setBusinessName(n) }
+    fun setTrade(t: Trade) = viewModelScope.launch { store.setTrade(t) }
+    fun setTemplate(t: String) = viewModelScope.launch { store.setTemplate(t) }
+    fun setGhost(o: Float, e: Boolean) = viewModelScope.launch { store.setGhost(o, e) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+    val loaded by vm.settings.collectAsStateWithLifecycle()
+    val s = loaded ?: return
+    // Text fields keep their own state and save as you type, so the cursor never jumps.
+    var name by remember { mutableStateOf(s.businessName) }
+    var template by remember { mutableStateOf(s.messageTemplate) }
+    var opacity by remember { mutableFloatStateOf(s.ghostOpacity) }
+    LaunchedEffect(name) { if (name != s.businessName) vm.setName(name) }
+    LaunchedEffect(template) { if (template != s.messageTemplate) vm.setTemplate(template) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings", style = MaterialTheme.typography.headlineSmall) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("BUSINESS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(name, { name = it }, label = { Text("Business name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text("Trade", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Trade.entries.forEach { t ->
+                    FilterChip(selected = s.trade == t, onClick = { vm.setTrade(t) }, label = { Text(t.label) })
+                }
+            }
+            OutlinedTextField(
+                template, { template = it },
+                label = { Text("Message to the client") },
+                supportingText = { Text("{first_name}, {service} and {link} are filled in for you.") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            HorizontalDivider()
+            Text("CAMERA", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("How strong the before shows when you shoot the after: ${(opacity * 100).toInt()}%")
+            Slider(
+                value = opacity,
+                onValueChange = { opacity = it },
+                onValueChangeFinished = { vm.setGhost(opacity, s.ghostEdges) },
+                valueRange = 0.1f..0.9f,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Start with outline")
+                    Text(
+                        "Shows only the edges of the before. Easier to see in bright sun.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = s.ghostEdges, onCheckedChange = { vm.setGhost(opacity, it) })
+            }
+
+            Spacer(Modifier.height(32.dp))
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                StudioLockup(ink = MaterialTheme.colorScheme.onBackground, fonts = studioFonts)
+                Spacer(Modifier.height(14.dp))
+                PromiseLine(
+                    listOf("Works offline", "No ads", "No trackers"),
+                    version = BuildConfig.VERSION_NAME,
+                    appName = "Pairshot",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    showLoop = false,
+                    style = TextStyle(fontFamily = Mono, fontSize = 10.sp, letterSpacing = 0.8.sp),
+                )
+            }
+        }
+    }
+}
