@@ -1,0 +1,22 @@
+{
+  // Pairshot server: client gallery pages, photo storage, CRM webhooks.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pairshot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  "d1_databases": [
+    // database_id is filled in when the real Cloudflare database is created; local dev doesn't need it.
+    { "binding": "DB", "database_name": "pairshot", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "pairshot-photos" }],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": {
+    // Local development: sign in without Google, switch plans freely. MUST be "false" in production.
+    "DEV_MODE": "true",
+    "GOOGLE_CLIENT_ID": "",
+    // Free uploads pause when everything stored passes this (bytes). 10 GB = R2's free allowance.
+    "FREE_STORAGE_BRAKE_BYTES": "10737418240"
+  }
+}

@@ -119,8 +119,8 @@ object GalleryBuilder {
     fun render(template: String, manifest: GalleryManifest, meta: String = ""): String {
         val safe = manifest.toJson()
             .replace("<", "\\u003c")
-            .replace(" ", "\\u2028")
-            .replace(" ", "\\u2029")
+            .replace("\u2028", "\\u2028")
+            .replace("\u2029", "\\u2029")
         return template.replace("/*DATA*/", safe).replace("<!--META-->", meta)
     }
 }
