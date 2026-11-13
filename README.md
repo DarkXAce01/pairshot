@@ -31,7 +31,7 @@ By Grease Pencil Studio. The full plan is in [PLAN.md](PLAN.md).
 - How to try it on a phone: [docs/testing-cloud.md](docs/testing-cloud.md).
 
 Live at https://pairshot.pairshot-server.workers.dev (test mode). Google sign-in is built and waits for a
-Google Cloud client ID ([docs/google-sign-in.md](docs/google-sign-in.md)). Not built yet: Play Billing for Pro.
+Google Cloud client ID ([docs/google-sign-in.md](docs/google-sign-in.md)). Buying Pro (Google Play Billing, checked by the server) switches on with [docs/play-billing.md](docs/play-billing.md).
 
 ## Build and run
 

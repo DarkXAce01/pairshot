@@ -84,6 +84,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.greasepencil.pairshot.BuildConfig
+import com.greasepencil.pairshot.data.billing.ProBilling
+import com.greasepencil.pairshot.data.billing.ProResult
 import com.greasepencil.pairshot.data.cloud.ApiKeyDto
 import com.greasepencil.pairshot.data.cloud.CloudSession
 import com.greasepencil.pairshot.data.cloud.CloudState
@@ -119,6 +121,8 @@ data class CloudExtras(
     val signingIn: Boolean = false,
     /** Why the last sign-in didn't work, shown under the button. */
     val signInError: String? = null,
+    /** Pro's price from Google Play, in the buyer's currency; null when Play can't sell it (debug builds). */
+    val price: String? = null,
 )
 
 @HiltViewModel
@@ -127,13 +131,34 @@ class CloudViewModel @Inject constructor(
     private val crm: CrmSync,
     private val sender: GallerySender,
     private val db: AppDatabase,
+    private val billing: ProBilling,
 ) : ViewModel() {
     val state: StateFlow<CloudState?> = session.state.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val extras = MutableStateFlow(CloudExtras())
     private val msgs = Channel<String>(Channel.BUFFERED)
     val messages = msgs.receiveAsFlow()
 
-    init { load() }
+    init {
+        load()
+        viewModelScope.launch { billing.results.collect { r -> proMessage(r)?.let { msgs.send(it) }; if (r is ProResult.Pro) load() } }
+        viewModelScope.launch { val p = billing.price(); extras.update { it.copy(price = p) } }
+    }
+
+    private fun proMessage(r: ProResult): String? = when (r) {
+        ProResult.Pro -> "Pro is on. Thank you!"
+        ProResult.Pending -> "Payment is pending. Pro switches on when Google Play confirms it."
+        ProResult.NothingToRestore -> "No Pro purchase found for the Google account in the Play Store."
+        ProResult.Cancelled -> null
+        is ProResult.Failed -> r.message
+    }
+
+    fun buyPro(activity: android.app.Activity) = run { billing.buy(activity)?.let { msgs.send(it) } }
+
+    fun restorePro() = run {
+        val r = billing.restore()
+        proMessage(r)?.let { msgs.send(it) }
+        if (r is ProResult.Pro) load().join()
+    }
 
     private fun run(okMessage: String? = null, block: suspend () -> Unit) = viewModelScope.launch {
         extras.update { it.copy(busy = true) }
@@ -150,8 +175,13 @@ class CloudViewModel @Inject constructor(
     /** Fetches plan, usage and (Pro) integrations, if this phone has signed in before. */
     fun load() = run {
         if (!session.state.first().signedIn) return@run
-        val me = session.call { it.me() }
+        var me = session.call { it.me() }
         session.saveAccount(me)
+        // Bought Pro but the server never heard (offline, app closed mid-purchase): switch it on quietly.
+        if (me.plan != "pro" && billing.restore() == ProResult.Pro) {
+            msgs.send("Pro is on. Your earlier purchase was found.")
+            me = session.call { it.me() }
+        }
         val usage = session.call { it.usage() }
         extras.update { it.copy(usage = usage) }
         if (me.plan == "pro") {
@@ -291,7 +321,11 @@ fun CloudScreen(onBack: () -> Unit, vm: CloudViewModel = hiltViewModel()) {
                 }
 
                 if (!s.isPro) {
-                    ProCard()
+                    ProCard(
+                        signedIn = s.signedIn, price = x.price, busy = x.busy,
+                        onBuy = { (context as? android.app.Activity)?.let(vm::buyPro) },
+                        onRestore = vm::restorePro,
+                    )
                 } else {
                     CrmJobsCard(
                         s, busy = x.busy,
@@ -508,16 +542,26 @@ private fun Meter(label: String, value: String, spoken: String, fraction: Float,
 // ---------- Pro features ----------
 
 @Composable
-private fun ProCard() {
+private fun ProCard(signedIn: Boolean, price: String?, busy: Boolean, onBuy: () -> Unit, onRestore: () -> Unit) {
     Card(title = "Connect your CRM", icon = Icons.Outlined.WorkspacePremium) {
         FactRow(Icons.Outlined.MoveToInbox, "New jobs from Jobber, Housecall Pro, ServiceTitan or anything Zapier/Make can reach show up in your list by themselves.")
         FactRow(Icons.Outlined.NotificationsActive, "When a client opens their link, your CRM hears about it, so it can add a note or ask for a review.")
         FactRow(Icons.Outlined.Key, "API keys let Zapier and Make look up a job's link or list what you've sent.")
+        FactRow(Icons.Outlined.WorkspacePremium, "Plus: unlimited links that never expire, 100 photos a link, and no \"Made with Pairshot\" mark.")
         Text(
-            "Part of Pro: one payment, no subscription.",
+            "One payment, no subscription.",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
+        if (!signedIn) {
+            Text("Sign in above first, so Pro is tied to your account.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Button(onClick = onBuy, enabled = signedIn && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+            Text(price?.let { "Get Pro · $it" } ?: "Get Pro")
+        }
+        TextButton(onClick = onRestore, enabled = signedIn && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("Restore purchase")
+        }
     }
 }
 

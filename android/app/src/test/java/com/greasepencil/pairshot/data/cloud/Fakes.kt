@@ -34,6 +34,14 @@ class FakeCloudApi : CloudApi {
     override suspend fun me(): AccountDto { gate(); return AccountDto("acc", "free") }
     override suspend fun usage(): UsageDto { gate(); return UsageDto("free", 0, 3, 30, 0, 1, 14) }
     override suspend fun setDevPlan(plan: String) = gate()
+    val claims = mutableListOf<String>()
+    /** What the server says to a Pro claim: "pro" or "pending". */
+    var claimStatus = "pro"
+    override suspend fun claimPro(purchaseToken: String, productId: String): ClaimProResponse {
+        gate()
+        claims += purchaseToken
+        return ClaimProResponse(claimStatus, AccountDto("acc", if (claimStatus == "pro") "pro" else "free"))
+    }
     override suspend fun deleteEverything() = gate()
     override suspend fun signOut() = gate()
 

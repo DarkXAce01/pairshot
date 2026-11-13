@@ -30,6 +30,7 @@ data class AppSettings(
     val businessPhone: String = "",
     val reviewUrl: String = "",
     val bookingUrl: String = "",
+    /** Not stored here: filled in from the account's plan (CloudSession) where it matters. */
     val isPro: Boolean = false,
 ) {
     companion object {

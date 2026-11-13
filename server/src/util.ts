@@ -40,7 +40,7 @@ export async function hmacSha256Hex(secret: string, message: string): Promise<st
 }
 
 /** A plain-English refusal the app can show as it is. */
-export function fail(status: 400 | 401 | 402 | 403 | 404 | 409 | 410 | 413 | 415 | 422 | 429 | 501 | 507, code: string, message: string): never {
+export function fail(status: 400 | 401 | 402 | 403 | 404 | 409 | 410 | 413 | 415 | 422 | 429 | 501 | 502 | 507, code: string, message: string): never {
   throw new HTTPException(status, { res: Response.json({ error: code, message }, { status }) });
 }
 

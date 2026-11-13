@@ -8,6 +8,7 @@ import type { AppEnv, Env } from "./env";
 import * as galleries from "./galleries";
 import { LIMITS } from "./limits";
 import { deleteUnreferenced, uploadPhoto } from "./photos";
+import * as play from "./play";
 import * as pub from "./public";
 import { now } from "./util";
 import * as hooks from "./webhooks";
@@ -39,6 +40,7 @@ v1.get("/me", account.me);
 v1.delete("/session", signOut);
 v1.delete("/me", account.deleteAll);
 v1.post("/dev/plan", account.devPlan);
+v1.post("/pro/claim", play.claim);
 v1.get("/usage", galleries.usage);
 v1.put("/photos/:hash", uploadPhoto);
 v1.get("/galleries", galleries.list);
@@ -65,8 +67,9 @@ pubApi.get("/galleries/lookup", api.apiLookup);
 pubApi.post("/jobs", api.apiCreateJob);
 app.route("/api/v1", pubApi);
 
-/** Every 5 minutes: expire galleries, delete photos nothing shows, retry webhooks, tidy counters. */
-export async function housekeeping(env: Env) {
+/** Every 5 minutes: expire galleries, delete photos nothing shows, retry webhooks, tidy counters. Hourly: refunds. */
+export async function housekeeping(env: Env, at = new Date()) {
+  if (at.getUTCMinutes() < 5) await play.checkVoided(env).catch((e) => console.error("voided", e));
   await galleries.expireGalleries(env);
   await deleteUnreferenced(env, LIMITS.both.unreferencedGraceMs);
   await hooks.retryDue(env);

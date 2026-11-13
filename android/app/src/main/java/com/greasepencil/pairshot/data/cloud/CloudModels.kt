@@ -94,6 +94,10 @@ internal val CloudJson = Json { ignoreUnknownKeys = true; explicitNulls = false;
 @Serializable data class ApiKeysResponse(val keys: List<ApiKeyDto>)
 @Serializable data class NewApiKeyDto(val id: String, val key: String, val prefix: String)
 
+@Serializable data class ClaimProRequest(val purchaseToken: String, val productId: String)
+/** status: "pro" (done) or "pending" (Google is still waiting for the money). */
+@Serializable data class ClaimProResponse(val status: String, val account: AccountDto)
+
 @Serializable data class OkDto(val ok: Boolean = true)
 @Serializable data class PlanRequest(val plan: String)
 @Serializable internal data class ErrorDto(val error: String = "error", val message: String? = null)

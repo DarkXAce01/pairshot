@@ -55,17 +55,18 @@ class PreviewViewModel @Inject constructor(
     handle: SavedStateHandle,
     repo: JobRepository,
     settings: SettingsStore,
+    cloud: com.greasepencil.pairshot.data.cloud.CloudSession,
     @ApplicationContext context: Context,
 ) : ViewModel() {
     private val jobId = handle.toRoute<PreviewRoute>().jobId
     private val template = context.assets.open("gallery.html").bufferedReader().use { it.readText() }
 
     /** The finished page, rebuilt whenever the job, its pairs or the business details change. */
-    val html: StateFlow<String?> = combine(repo.observeJob(jobId), repo.observePairs(jobId), settings.settings) { job, pairs, s ->
+    val html: StateFlow<String?> = combine(repo.observeJob(jobId), repo.observePairs(jobId), settings.settings, cloud.state) { job, pairs, s, c ->
         job ?: return@combine null
         val manifest = GalleryBuilder.build(
             job, pairs,
-            BusinessInfo(s.businessName, s.businessPhone, s.reviewUrl, s.bookingUrl, s.isPro),
+            BusinessInfo(s.businessName, s.businessPhone, s.reviewUrl, s.bookingUrl, c.isPro),
             imageUrl = { file, rot -> "$HOST/photo/$rot/$file" },
         )
         GalleryBuilder.render(template, manifest)

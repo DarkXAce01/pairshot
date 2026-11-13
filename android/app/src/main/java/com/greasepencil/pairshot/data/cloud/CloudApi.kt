@@ -22,6 +22,8 @@ interface CloudApi {
     suspend fun me(): AccountDto
     suspend fun usage(): UsageDto
     suspend fun setDevPlan(plan: String)
+    /** Hands a Google Play purchase of Pro to the server, which checks it with Google. */
+    suspend fun claimPro(purchaseToken: String, productId: String): ClaimProResponse
     suspend fun deleteEverything()
     /** Ends this phone's session on the server. */
     suspend fun signOut()
@@ -92,6 +94,8 @@ class HttpCloudApi(baseUrl: String, private val token: String?) : CloudApi {
     override suspend fun me() = request("GET", "/v1/me", AccountDto.serializer())
     override suspend fun usage() = request("GET", "/v1/usage", UsageDto.serializer())
     override suspend fun setDevPlan(plan: String) { send("POST", "/v1/dev/plan", PlanRequest(plan), PlanRequest.serializer()) }
+    override suspend fun claimPro(purchaseToken: String, productId: String) =
+        send("POST", "/v1/pro/claim", ClaimProRequest(purchaseToken, productId), ClaimProResponse.serializer())
     override suspend fun deleteEverything() { request("DELETE", "/v1/me", OkDto.serializer()) }
     override suspend fun signOut() { request("DELETE", "/v1/session", OkDto.serializer()) }
 

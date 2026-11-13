@@ -7,7 +7,7 @@ export default defineConfig(async () => {
     plugins: [
       cloudflareTest({
         wrangler: { configPath: "./wrangler.jsonc" },
-        miniflare: { bindings: { TEST_MIGRATIONS: migrations, DEV_MODE: "true", GOOGLE_CLIENT_ID: "", FREE_STORAGE_BRAKE_BYTES: "10737418240" } },
+        miniflare: { bindings: { TEST_MIGRATIONS: migrations, DEV_MODE: "true", GOOGLE_CLIENT_ID: "", FREE_STORAGE_BRAKE_BYTES: "10737418240", PLAY_PACKAGE: "com.greasepencil.pairshot", PRO_PRODUCT_ID: "pro" } },
       }),
     ],
     test: { setupFiles: ["./test/setup.ts"] },

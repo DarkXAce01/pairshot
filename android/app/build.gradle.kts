@@ -97,6 +97,7 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.play)
     implementation(libs.googleid)
+    implementation(libs.billing)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

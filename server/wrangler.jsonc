@@ -18,6 +18,10 @@
     "DEV_MODE": "false",
     "GOOGLE_CLIENT_ID": "118026851240-ucj9denba83declo3r8p6521ok1ibc2q.apps.googleusercontent.com",
     // Free uploads pause when everything stored passes this (bytes). 10 GB = R2's free allowance.
-    "FREE_STORAGE_BRAKE_BYTES": "10737418240"
+    "FREE_STORAGE_BRAKE_BYTES": "10737418240",
+    // Buying Pro: the Play package and product. The service account key is a secret
+    // (`npx wrangler secret put PLAY_SERVICE_ACCOUNT`, see docs/play-billing.md).
+    "PLAY_PACKAGE": "com.greasepencil.pairshot",
+    "PRO_PRODUCT_ID": "pro"
   }
 }

@@ -90,6 +90,7 @@ class PairViewModel @Inject constructor(
     private val repo: JobRepository,
     private val importer: PhotoImporter,
     private val settingsStore: SettingsStore,
+    cloud: com.greasepencil.pairshot.data.cloud.CloudSession,
 ) : ViewModel() {
     private val pairId = handle.toRoute<PairRoute>().pairId
     val state: StateFlow<PairState> = repo.observePair(pairId).map { PairState(true, it) }
@@ -117,7 +118,8 @@ class PairViewModel @Inject constructor(
     fun importAfter(uri: Uri, failed: () -> Unit) = viewModelScope.launch {
         if (!importer.importAfter(pairId, uri)) failed()
     }
-    val settings: StateFlow<AppSettings> = settingsStore.settings
+    /** Settings, with Pro taken from the account (it decides the collage mark). */
+    val settings: StateFlow<AppSettings> = kotlinx.coroutines.flow.combine(settingsStore.settings, cloud.state) { s, c -> s.copy(isPro = c.isPro) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
     fun setCover() = viewModelScope.launch { repo.setCover(pairId) }
