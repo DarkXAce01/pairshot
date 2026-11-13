@@ -11,6 +11,8 @@ export interface Manifest {
   cover: PairItem | null;
   sections: Section[];
   badge: boolean;
+  /** Only on the live page: where "Download all photos" points. */
+  download?: string;
 }
 
 const str = (v: unknown, max: number): string | undefined =>

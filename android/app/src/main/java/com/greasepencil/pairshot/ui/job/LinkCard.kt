@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -51,6 +52,41 @@ data class LinkState(
     /** Sends wait for Wi-Fi (Settings). */
     val wifiOnly: Boolean = false,
 )
+
+/** After this long queued or sending, a battery saver may be holding the upload back. */
+const val STALL_MILLIS = 10 * 60_000L
+
+/** True when a send has sat for a while for no reason the user already sees (Wi-Fi only). */
+fun looksStalled(g: GalleryEntity?, now: Long, wifiOnly: Boolean): Boolean =
+    g != null && (g.sendState == SendState.SENDING || (g.sendState == SendState.QUEUED && !wifiOnly)) &&
+        now - g.updatedAt >= STALL_MILLIS
+
+/** Android's list where the user can let Pairshot keep running; shown only if it's being held back. */
+private fun batteryLimited(context: Context): Boolean {
+    val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+    return !pm.isIgnoringBatteryOptimizations(context.packageName)
+}
+
+@Composable
+private fun StallTip(g: GalleryEntity, wifiOnly: Boolean) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val now by androidx.compose.runtime.produceState(System.currentTimeMillis()) {
+        while (true) { kotlinx.coroutines.delay(30_000); value = System.currentTimeMillis() }
+    }
+    if (!looksStalled(g, now, wifiOnly) || !batteryLimited(context)) return
+    Text(
+        "Taking a while? Some phones pause uploads to save battery. Letting Pairshot run in the background fixes it.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    TextButton(
+        onClick = {
+            runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+                .recoverCatching { context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) }
+        },
+        modifier = Modifier.heightIn(min = 48.dp),
+    ) { Text("Open battery settings") }
+}
 
 @Composable
 fun LinkCard(
@@ -107,6 +143,7 @@ fun LinkCard(
                     if (g.sendState == SendState.QUEUED && s.wifiOnly) {
                         TextButton(onClick = onSendOverMobile, modifier = Modifier.heightIn(min = 48.dp)) { Text("Send now using mobile data") }
                     }
+                    StallTip(g, s.wifiOnly)
                 }
                 g.sendState == SendState.FAILED -> {
                     Text(if (g.url == null) "Not sent" else "Not updated", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })

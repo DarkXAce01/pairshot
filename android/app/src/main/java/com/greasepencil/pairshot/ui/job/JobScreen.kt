@@ -130,6 +130,10 @@ class JobViewModel @Inject constructor(
     private val shareEvents = Channel<String>(Channel.BUFFERED)
     val shares = shareEvents.receiveAsFlow()
 
+    /** A first link just went out: play the "Sent." moment, then share. */
+    private val momentEvents = Channel<Moment>(Channel.BUFFERED)
+    val moments = momentEvents.receiveAsFlow()
+
     val link: StateFlow<LinkState> = combine(
         repo.observeJob(jobId), repo.observePairs(jobId), sender.observe(jobId), settings.settings, cloud.state,
     ) { job, pairs, g, s, c ->
@@ -146,7 +150,11 @@ class JobViewModel @Inject constructor(
             sender.observe(jobId).collect { g ->
                 if (g != null && g.shareWhenReady && g.sendState == SendState.SENT && g.url != null) {
                     sender.clearShareFlag(g.id)
-                    message()?.let { shareEvents.send(it) }
+                    message()?.let { msg ->
+                        val pairs = repo.observePairs(jobId).first().filter { !it.pair.hidden && it.afterFile != null }
+                        val cover = pairs.firstOrNull { it.pair.isCover } ?: pairs.firstOrNull()
+                        momentEvents.send(Moment(cover?.afterFile, cover?.afterRotation ?: 0, msg))
+                    }
                 }
             }
         }
@@ -224,6 +232,8 @@ fun JobScreen(
     val s by vm.state.collectAsStateWithLifecycle()
     val link by vm.link.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var moment by remember { mutableStateOf<Moment?>(null) }
+    LaunchedEffect(Unit) { vm.moments.collect { moment = it } }
     LaunchedEffect(Unit) {
         vm.shares.collect { msg ->
             if (msg.startsWith("!")) snackbar.showSnackbar(msg.drop(1)) else LinkActions.share(context, msg)
@@ -422,6 +432,19 @@ fun JobScreen(
             confirmButton = { TextButton(onClick = { section.area?.let { vm.deleteArea(it.id) }; deletingArea = null }) { Text("Remove") } },
             dismissButton = { TextButton(onClick = { deletingArea = null }) { Text("Keep") } },
         )
+    }
+    moment?.let { m ->
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { moment = null; LinkActions.share(context, m.message) },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            SentMoment(m) {
+                if (moment != null) {
+                    moment = null
+                    LinkActions.share(context, m.message)
+                }
+            }
+        }
     }
 }
 

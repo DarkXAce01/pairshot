@@ -4,7 +4,10 @@ import type { AppEnv, Env } from "./env";
 import { type GalleryRow, galleryState, publicGallery } from "./galleries";
 import { type Manifest, withUrls } from "./manifest";
 import { r2Key } from "./photos";
+import { bump } from "./counters";
+import { dayKey, LIMITS } from "./limits";
 import { escapeHtml, isHash, now } from "./util";
+import { photoName, type ZipEntry, zipStream } from "./zip";
 import { emit } from "./webhooks";
 
 /** Link previewers (SMS, WhatsApp, Slack…) fetch the page too; they must not count as the client. */
@@ -63,7 +66,7 @@ export async function galleryPage(c: Context<AppEnv>) {
   }
 
   const origin = new URL(c.req.url).origin;
-  const page = withUrls(manifest, (h) => `${origin}/i/${g.account_id}/${h}`);
+  const page = { ...withUrls(manifest, (h) => `${origin}/i/${g.account_id}/${h}`), download: `${origin}/g/${g.slug}/photos.zip` };
   const title = `${page.job.title}${page.business.name ? ` · ${page.business.name}` : ""}`;
   const description = page.business.name ? `Before & after photos from ${page.business.name}.` : "Before & after photos.";
   const cover = page.cover?.after.src ?? "";
@@ -93,6 +96,43 @@ export async function galleryPage(c: Context<AppEnv>) {
     })());
   }
   return c.html(render(page, meta), 200, await headers({ "cache-control": "no-store" }));
+}
+
+/** GET /g/:slug/photos.zip: every photo in the gallery, named by area, for the client to keep. */
+export async function galleryZip(c: Context<AppEnv>) {
+  const env = c.env;
+  const g = await env.DB.prepare(`SELECT * FROM galleries WHERE slug = ?1`).bind(c.req.param("slug")).first<GalleryRow>();
+  if (!g || !g.manifest || galleryState(g) !== "live") return c.notFound();
+  const count = await bump(env, g.account_id, `zip:${g.id}`, dayKey(now()));
+  if (count > LIMITS.both.zipsPerGalleryPerDay) {
+    return c.text("This gallery has been downloaded a lot today. Try again tomorrow, or save the photos one by one.", 429);
+  }
+  const m = JSON.parse(g.manifest) as Manifest;
+  const pairs = [m.cover, ...m.sections.flatMap((s) => s.pairs.map((p) => ({ ...p, label: p.label ?? s.label })))]
+    .filter((p): p is NonNullable<typeof p> => !!p);
+  const seen = new Set<string>();
+  const entries: ZipEntry[] = [];
+  pairs.forEach((p, i) => {
+    for (const side of ["before", "after"] as const) {
+      const hash = p[side].src;
+      if (!isHash(hash) || seen.has(hash)) continue;
+      seen.add(hash);
+      entries.push({
+        name: photoName(i + 1, p.label, side),
+        open: async () => (await env.PHOTOS.get(r2Key(g.account_id, hash)))?.body ?? null,
+      });
+    }
+  });
+  const file = (m.job.title || "photos").replace(/[^A-Za-z0-9 _-]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "photos";
+  return new Response(zipStream(entries), {
+    headers: {
+      "content-type": "application/zip",
+      "content-disposition": `attachment; filename="${file}.zip"`,
+      "cache-control": "no-store",
+      "x-robots-tag": "noindex, nofollow",
+      "x-content-type-options": "nosniff",
+    },
+  });
 }
 
 /** GET /i/:account/:hash: a photo, only while a live gallery shows it. */

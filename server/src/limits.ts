@@ -32,6 +32,8 @@ export const LIMITS = {
     /** Different photos ever put in one gallery, as a multiple of its photo limit. */
     historyFactor: 1.5,
     unreferencedGraceMs: DAY,
+    /** "Download all" on the client page, per gallery per day. */
+    zipsPerGalleryPerDay: 20,
   },
 } as const;
 

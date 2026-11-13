@@ -27,6 +27,7 @@ app.get("/", pub.home);
 app.get("/privacy", pub.privacy);
 app.get("/delete-account", pub.deleteInfo);
 app.get("/g/:slug", pub.galleryPage);
+app.get("/g/:slug/photos.zip", pub.galleryZip);
 app.get("/i/:account/:hash", pub.photo);
 
 // CRM → Pairshot (secret address, no sign-in)

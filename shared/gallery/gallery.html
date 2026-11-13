@@ -165,6 +165,7 @@
   var review = safeUrl(biz.reviewUrl), booking = safeUrl(biz.bookingUrl);
   if (review) actions.appendChild(el("a", { "class": "btn primary", href: review, target: "_blank", rel: "noopener", text: "Leave a review" }));
   if (booking) actions.appendChild(el("a", { "class": "btn", href: booking, target: "_blank", rel: "noopener", text: "Book again" }));
+  if (/^https:\/\//.test(data.download || "")) actions.appendChild(el("a", { "class": "btn", href: data.download, download: "", text: "Download all photos" }));
   if (biz.phone) actions.appendChild(el("a", { "class": "btn", href: "tel:" + String(biz.phone).replace(/[^0-9+]/g, ""), text: "Call " + (biz.name || "us") }));
   var footer = el("footer", null, [
     el("p", { "class": "thanks", text: "Thanks for choosing " + (biz.name || "us") + "." }),
