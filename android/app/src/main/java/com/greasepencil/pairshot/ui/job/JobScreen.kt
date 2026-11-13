@@ -136,7 +136,7 @@ class JobViewModel @Inject constructor(
         val canSend = pairs.any { !it.needsAfter && !it.pair.hidden }
         val changed = job != null && g?.sentFingerprint != null &&
             GallerySender.fingerprint(job, pairs, s, c.isPro) != g.sentFingerprint
-        LinkState(g, changed, canSend, clock.now())
+        LinkState(g, changed, canSend, clock.now(), wifiOnly = s.wifiOnly)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LinkState())
 
     init {
@@ -158,8 +158,11 @@ class JobViewModel @Inject constructor(
     fun send() = viewModelScope.launch {
         val first = link.value.gallery?.url == null || link.value.gallery?.remoteState in setOf("revoked", "expired")
         sender.queue(jobId, shareWhenReady = first)
-        SendWorker.enqueue(app, jobId)
+        SendWorker.enqueue(app, jobId, wifiOnly = settings.settings.first().wifiOnly)
     }
+
+    /** "Wi-Fi only" is on but the client is waiting: send this one now over mobile data. */
+    fun sendOverMobile() = viewModelScope.launch { SendWorker.enqueue(app, jobId, wifiOnly = false) }
 
     fun close() = viewModelScope.launch {
         runCatching { sender.close(jobId) }.onFailure { shareEvents.send("!" + (it.message ?: "Couldn't close the link.")) }
@@ -351,6 +354,7 @@ fun JobScreen(
                         scope.launch { snackbar.showSnackbar("Link copied.") }
                     },
                     onClose = { confirmClose = true },
+                    onSendOverMobile = vm::sendOverMobile,
                 )
             }
             if (s.completePairs > 0) {

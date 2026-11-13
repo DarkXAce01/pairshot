@@ -48,6 +48,8 @@ data class LinkState(
     val changed: Boolean = false,
     val canSend: Boolean = false,
     val now: Long = System.currentTimeMillis(),
+    /** Sends wait for Wi-Fi (Settings). */
+    val wifiOnly: Boolean = false,
 )
 
 @Composable
@@ -59,6 +61,7 @@ fun LinkCard(
     onText: () -> Unit,
     onCopy: () -> Unit,
     onClose: () -> Unit,
+    onSendOverMobile: () -> Unit = {},
 ) {
     val g = s.gallery
     val closed = g?.remoteState == "revoked" || g?.remoteState == "expired"
@@ -92,6 +95,7 @@ fun LinkCard(
                         Text(
                             when {
                                 g.sendState == SendState.SENDING -> if (g.url == null) "Sending…" else "Updating the link…"
+                                s.wifiOnly -> "Waiting for Wi-Fi. It'll go by itself."
                                 else -> "Waiting for signal. It'll go by itself."
                             },
                             style = MaterialTheme.typography.titleSmall,
@@ -99,6 +103,9 @@ fun LinkCard(
                     }
                     if (g.sendState == SendState.QUEUED && g.error != null) {
                         Text(g.error, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (g.sendState == SendState.QUEUED && s.wifiOnly) {
+                        TextButton(onClick = onSendOverMobile, modifier = Modifier.heightIn(min = 48.dp)) { Text("Send now using mobile data") }
                     }
                 }
                 g.sendState == SendState.FAILED -> {

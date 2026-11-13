@@ -6,6 +6,8 @@ import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -34,6 +36,7 @@ interface WorkEntryPoint {
 private fun Context.deps() = EntryPointAccessors.fromApplication(applicationContext, WorkEntryPoint::class.java)
 
 private val online = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+private val wifi = Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED).build()
 
 /** Sends (or updates) one job's link. Waits for a connection, and keeps trying if the server is busy. */
 class SendWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -59,11 +62,21 @@ class SendWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         }
     }
 
+    /** Older Androids run expedited work as a foreground service, which needs a notification. */
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        ForegroundInfo(Notifier.UPLOAD_ID, Notifier.uploading(applicationContext))
+
     companion object {
         const val KEY_JOB = "jobId"
-        fun enqueue(context: Context, jobId: String) {
+
+        /**
+         * Expedited, so a send the user is waiting on starts at once and isn't cut off by battery savers
+         * (it falls back to normal work if the app's quota is used up).
+         */
+        fun enqueue(context: Context, jobId: String, wifiOnly: Boolean = false) {
             val req = OneTimeWorkRequestBuilder<SendWorker>()
-                .setConstraints(online)
+                .setConstraints(if (wifiOnly) wifi else online)
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .setInputData(workDataOf(KEY_JOB to jobId))
                 .build()

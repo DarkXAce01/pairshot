@@ -30,6 +30,8 @@ data class AppSettings(
     val businessPhone: String = "",
     val reviewUrl: String = "",
     val bookingUrl: String = "",
+    /** Links upload only on Wi-Fi (they wait otherwise). */
+    val wifiOnly: Boolean = false,
     /** Not stored here: filled in from the account's plan (CloudSession) where it matters. */
     val isPro: Boolean = false,
 ) {
@@ -55,6 +57,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val phone = stringPreferencesKey("business_phone")
         val review = stringPreferencesKey("review_url")
         val booking = stringPreferencesKey("booking_url")
+        val wifiOnly = booleanPreferencesKey("wifi_only")
     }
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -68,6 +71,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             businessPhone = p[Keys.phone] ?: "",
             reviewUrl = p[Keys.review] ?: "",
             bookingUrl = p[Keys.booking] ?: "",
+            wifiOnly = p[Keys.wifiOnly] ?: false,
         )
     }
 
@@ -87,4 +91,5 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     suspend fun setBusinessPhone(v: String) = context.dataStore.edit { it[Keys.phone] = v.trim() }
     suspend fun setReviewUrl(v: String) = context.dataStore.edit { it[Keys.review] = v.trim() }
     suspend fun setBookingUrl(v: String) = context.dataStore.edit { it[Keys.booking] = v.trim() }
+    suspend fun setWifiOnly(v: Boolean) = context.dataStore.edit { it[Keys.wifiOnly] = v }
 }

@@ -32,15 +32,29 @@ object AppVisibility : Application.ActivityLifecycleCallbacks {
 
 object Notifier {
     private const val CHANNEL = "links"
+    private const val UPLOADS = "uploads"
     const val EXTRA_JOB = "open_job"
+    const val UPLOAD_ID = 0x5E4D
 
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= 26) {
             val ch = NotificationChannel(CHANNEL, "Client links", NotificationManager.IMPORTANCE_DEFAULT)
             ch.description = "When a link that was waiting for signal has gone out"
             context.getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+            val up = NotificationChannel(UPLOADS, "Uploading", NotificationManager.IMPORTANCE_LOW)
+            up.description = "Shown while photos upload for a client link"
+            context.getSystemService(NotificationManager::class.java).createNotificationChannel(up)
         }
     }
+
+    /** The quiet "Uploading photos…" notice for a send running in the background. */
+    fun uploading(context: Context) = NotificationCompat.Builder(context, UPLOADS)
+        .setSmallIcon(R.drawable.ic_notification)
+        .setContentTitle("Uploading photos for a client link")
+        .setProgress(0, 0, true)
+        .setOngoing(true)
+        .setSilent(true)
+        .build()
 
     fun linkReady(context: Context, jobId: String, client: String, updated: Boolean) =
         post(context, jobId, if (updated) "Link updated" else "Link ready for $client", if (updated) "$client's page shows your latest photos." else "Tap to send it.")

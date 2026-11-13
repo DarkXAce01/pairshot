@@ -182,4 +182,8 @@ interface GalleryDao {
 
     @Query("DELETE FROM galleries")
     suspend fun deleteAll()
+
+    /** Jobs whose link was first sent before [before]: the ones "free up space" can remove. */
+    @Query("SELECT jobId FROM galleries WHERE publishedAt IS NOT NULL AND publishedAt < :before")
+    suspend fun jobsSentBefore(before: Long): List<String>
 }

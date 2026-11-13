@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -68,7 +69,12 @@ class HomeViewModel @Inject constructor(
     repo: JobRepository,
     clock: Clock,
     crm: com.greasepencil.pairshot.data.cloud.CrmSync,
+    private val storage: com.greasepencil.pairshot.data.repo.LocalStorage,
 ) : ViewModel() {
+    /** Free space on the phone when it's under 1 GB (null when there's plenty). Checked each time Home shows. */
+    val lowSpace = MutableStateFlow<Long?>(null)
+    fun checkSpace() { lowSpace.value = storage.freeBytes().takeIf { it < com.greasepencil.pairshot.data.repo.LocalStorage.LOW_BYTES } }
+
     init {
         // New jobs from the CRM (Pro). Quiet: offline or free just means nothing happens.
         viewModelScope.launch { runCatching { crm.pull() } }
@@ -91,6 +97,8 @@ fun HomeScreen(
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val lowSpace by vm.lowSpace.collectAsStateWithLifecycle()
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { vm.checkSpace(); onPauseOrDispose { } }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -114,6 +122,9 @@ fun HomeScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            lowSpace?.let { free ->
+                item { LowSpaceBanner(free, onSettings) }
+            }
             if (state.totalJobs > 3) {
                 item {
                     OutlinedTextField(
@@ -141,6 +152,26 @@ fun HomeScreen(
                 item { SectionLabel(if (state.today.isEmpty()) "RECENT" else "OTHER JOBS") }
                 items(state.recent, key = { it.job.id }) { JobCard(it) { onOpenJob(it.job.id) } }
             }
+        }
+    }
+}
+
+/** The phone is nearly full: new photos could fail to save. */
+@Composable
+private fun LowSpaceBanner(free: Long, onSettings: () -> Unit) {
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Phone storage is nearly full", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Only ${"%.0f".format(free / 1e6)} MB left. New photos might not save. Free up space in Settings.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            androidx.compose.material3.TextButton(onClick = onSettings, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Settings") }
         }
     }
 }
