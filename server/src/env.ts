@@ -10,6 +10,8 @@ export interface Env {
   PRO_PRODUCT_ID: string;
   /** Secret: a Google service account's JSON key with access to Play Console. Unset = buying Pro is off. */
   PLAY_SERVICE_ACCOUNT?: string;
+  /** Play Integrity at sign-in: off, log or enforce (see integrity.ts). */
+  INTEGRITY_MODE?: string;
   /** Tests only: a JSON Web Key Set to verify Google tokens against, instead of Google's. */
   GOOGLE_JWKS_JSON?: string;
 }
@@ -41,6 +43,7 @@ declare global {
       PLAY_PACKAGE: string;
       PRO_PRODUCT_ID: string;
       PLAY_SERVICE_ACCOUNT?: string;
+      INTEGRITY_MODE?: string;
       GOOGLE_JWKS_JSON?: string;
       TEST_MIGRATIONS: import("@cloudflare/vitest-plugin").D1Migration[];
     }

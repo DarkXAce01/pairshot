@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { bump } from "./counters";
 import { type Account, type AppEnv, type Env, isDev } from "./env";
+import { checkSignIn } from "./integrity";
 import { fail, isUuidish, now, randomToken, sha256Hex } from "./util";
 
 let googleKeys: JWTVerifyGetKey | undefined;
@@ -41,7 +42,7 @@ async function createAccount(env: Env, fields: { googleSub: string | null; devic
  * optional and the phone alone is the account.
  */
 export async function signIn(c: Context<AppEnv>) {
-  const body = await c.req.json<{ deviceId?: unknown; googleIdToken?: unknown }>().catch(() => ({}) as Record<string, unknown>);
+  const body = await c.req.json<{ deviceId?: unknown; googleIdToken?: unknown; integrityToken?: unknown }>().catch(() => ({}) as Record<string, unknown>);
   const deviceId = body.deviceId;
   if (!isUuidish(deviceId)) fail(400, "bad_device", "Missing or odd device id.");
   const env = c.env;
@@ -49,6 +50,7 @@ export async function signIn(c: Context<AppEnv>) {
 
   if (typeof body.googleIdToken === "string" && body.googleIdToken) {
     const google = await verifyGoogle(env, body.googleIdToken);
+    await checkSignIn(env, deviceId, body.integrityToken);
     account = await env.DB.prepare(`SELECT * FROM accounts WHERE google_sub = ?1`).bind(google.sub).first<Account>();
     if (!account) {
       const other = await env.DB.prepare(`SELECT email FROM accounts WHERE device_id = ?1 AND google_sub IS NOT NULL`)

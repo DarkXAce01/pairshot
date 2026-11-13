@@ -1,7 +1,7 @@
 import type { Context } from "hono";
-import { importPKCS8, SignJWT } from "jose";
 import { publicAccount } from "./auth";
 import type { Account, AppEnv, Env } from "./env";
+import { serviceToken } from "./google";
 import { fail, now } from "./util";
 
 /**
@@ -12,42 +12,8 @@ import { fail, now } from "./util";
 
 const API = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications";
 
-interface ServiceAccount { client_email: string; private_key: string; token_uri?: string }
-
-let cached: { key: string; token: string; until: number } | undefined;
-
-/** An OAuth access token for the Play Developer API, from the service account key. */
-async function accessToken(env: Env): Promise<string> {
-  const raw = env.PLAY_SERVICE_ACCOUNT!;
-  if (cached && cached.key === raw && cached.until > now() + 60_000) return cached.token;
-  let sa: ServiceAccount;
-  try {
-    sa = JSON.parse(raw);
-  } catch {
-    throw new Error("PLAY_SERVICE_ACCOUNT isn't valid JSON");
-  }
-  const tokenUri = sa.token_uri ?? "https://oauth2.googleapis.com/token";
-  const at = Math.floor(now() / 1000);
-  const assertion = await new SignJWT({ scope: "https://www.googleapis.com/auth/androidpublisher" })
-    .setProtectedHeader({ alg: "RS256", typ: "JWT" })
-    .setIssuer(sa.client_email)
-    .setAudience(tokenUri)
-    .setIssuedAt(at)
-    .setExpirationTime(at + 3600)
-    .sign(await importPKCS8(sa.private_key, "RS256"));
-  const res = await fetch(tokenUri, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
-  });
-  if (!res.ok) throw new Error(`Google token: ${res.status} ${await res.text()}`);
-  const j = (await res.json()) as { access_token: string; expires_in: number };
-  cached = { key: raw, token: j.access_token, until: now() + j.expires_in * 1000 };
-  return j.access_token;
-}
-
 async function google(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
-  const token = await accessToken(env);
+  const token = await serviceToken(env, "https://www.googleapis.com/auth/androidpublisher");
   return fetch(`${API}/${encodeURIComponent(env.PLAY_PACKAGE)}/${path}`, {
     ...init,
     headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}` },
@@ -145,5 +111,4 @@ export async function checkVoided(env: Env, at = now()): Promise<number> {
   return changed;
 }
 
-/** Tests: forget the cached Google access token. */
-export const resetPlayCache = () => { cached = undefined; };
+export { resetServiceTokens as resetPlayCache } from "./google";

@@ -89,7 +89,8 @@ class CloudSession @Inject constructor(@ApplicationContext private val context: 
 
     /** Signs in with a token from [GoogleAuth.idToken]. */
     suspend fun signInWithGoogle(idToken: String) = signInLock.withLock {
-        signIn(requireServer(state.first()), AuthRequest(deviceId(), googleIdToken = idToken))
+        val device = deviceId()
+        signIn(requireServer(state.first()), AuthRequest(device, googleIdToken = idToken, integrityToken = PlayIntegrity.token(context, device)))
         Unit
     }
 

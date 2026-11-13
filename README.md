@@ -31,6 +31,7 @@ By Grease Pencil Studio. The full plan is in [PLAN.md](PLAN.md).
 - How to try it on a phone: [docs/testing-cloud.md](docs/testing-cloud.md).
 
 Live at https://pairshot.pairshot-server.workers.dev with Google sign-in ([docs/google-sign-in.md](docs/google-sign-in.md)). Buying Pro (Google Play Billing, checked by the server) switches on with [docs/play-billing.md](docs/play-billing.md).
+Play Integrity at sign-in is built and off until launch: [docs/play-integrity.md](docs/play-integrity.md).
 
 ## Build and run
 

@@ -27,6 +27,7 @@ webkit = "1.12.1"
 mockwebserver = "4.12.0"
 credentials = "1.5.0"
 billing = "8.3.0"
+integrity = "1.6.0"
 googleid = "1.1.1"
 
 [libraries]
@@ -69,6 +70,7 @@ androidx-test-junit = { module = "androidx.test.ext:junit-ktx", version.ref = "a
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 billing = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
+integrity = { module = "com.google.android.play:integrity", version.ref = "integrity" }
 credentials-play = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "mockwebserver" }

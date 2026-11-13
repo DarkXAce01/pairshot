@@ -9,7 +9,8 @@ import kotlinx.serialization.json.Json
 internal val CloudJson = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = true }
 
 @Serializable data class AccountDto(val id: String, val plan: String, val email: String? = null, val inboundUrl: String? = null)
-@Serializable data class AuthRequest(val deviceId: String, val googleIdToken: String? = null)
+/** [integrityToken]: Play Integrity proof that this is the real app from Play (null when unavailable). */
+@Serializable data class AuthRequest(val deviceId: String, val googleIdToken: String? = null, val integrityToken: String? = null)
 @Serializable data class AuthResponse(val token: String, val account: AccountDto)
 
 @Serializable data class UsageDto(

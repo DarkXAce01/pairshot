@@ -21,6 +21,7 @@ android {
         // Where links are sent from. Empty in builds for now: set it in Settings → Cloud & CRM.
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"${providers.gradleProperty("pairshot.serverUrl").getOrElse("")}\"")
         // Google sign-in: the *Web* OAuth client id from Google Cloud (not secret). Empty = test sign-in (dev servers only).
+        buildConfigField("long", "CLOUD_PROJECT_NUMBER", "${providers.gradleProperty("pairshot.cloudProjectNumber").getOrElse("0")}L")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("pairshot.googleWebClientId").getOrElse("")}\"")
     }
 
@@ -98,6 +99,7 @@ dependencies {
     implementation(libs.credentials.play)
     implementation(libs.googleid)
     implementation(libs.billing)
+    implementation(libs.integrity)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

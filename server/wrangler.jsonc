@@ -22,6 +22,9 @@
     // Buying Pro: the Play package and product. The service account key is a secret
     // (`npx wrangler secret put PLAY_SERVICE_ACCOUNT`, see docs/play-billing.md).
     "PLAY_PACKAGE": "com.greasepencil.pairshot",
-    "PRO_PRODUCT_ID": "pro"
+    "PRO_PRODUCT_ID": "pro",
+    // Play Integrity at sign-in: "off", "log" (check, never refuse) or "enforce". Needs PLAY_SERVICE_ACCOUNT.
+    // Debug builds from Android Studio never pass, so only enforce once testers install from Play.
+    "INTEGRITY_MODE": "off"
   }
 }
