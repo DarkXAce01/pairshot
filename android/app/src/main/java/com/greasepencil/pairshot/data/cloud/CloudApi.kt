@@ -23,6 +23,8 @@ interface CloudApi {
     suspend fun usage(): UsageDto
     suspend fun setDevPlan(plan: String)
     suspend fun deleteEverything()
+    /** Ends this phone's session on the server. */
+    suspend fun signOut()
 
     suspend fun uploadPhoto(hash: String, jpeg: ByteArray)
     suspend fun prepare(galleryId: String, req: SendRequest): PrepareResponse
@@ -91,6 +93,7 @@ class HttpCloudApi(baseUrl: String, private val token: String?) : CloudApi {
     override suspend fun usage() = request("GET", "/v1/usage", UsageDto.serializer())
     override suspend fun setDevPlan(plan: String) { send("POST", "/v1/dev/plan", PlanRequest(plan), PlanRequest.serializer()) }
     override suspend fun deleteEverything() { request("DELETE", "/v1/me", OkDto.serializer()) }
+    override suspend fun signOut() { request("DELETE", "/v1/session", OkDto.serializer()) }
 
     override suspend fun uploadPhoto(hash: String, jpeg: ByteArray) {
         request("PUT", "/v1/photos/$hash", OkDto.serializer(), jpeg, "image/jpeg")

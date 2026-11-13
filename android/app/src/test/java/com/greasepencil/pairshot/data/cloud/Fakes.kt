@@ -35,6 +35,7 @@ class FakeCloudApi : CloudApi {
     override suspend fun usage(): UsageDto { gate(); return UsageDto("free", 0, 3, 30, 0, 1, 14) }
     override suspend fun setDevPlan(plan: String) = gate()
     override suspend fun deleteEverything() = gate()
+    override suspend fun signOut() = gate()
 
     override suspend fun uploadPhoto(hash: String, jpeg: ByteArray) {
         gate()

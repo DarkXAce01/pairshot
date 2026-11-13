@@ -99,3 +99,10 @@ export const requireAccount: MiddlewareHandler<AppEnv> = async (c, next) => {
   c.set("account", account);
   await next();
 };
+
+/** DELETE /v1/session: signs this phone out (only this session; other phones stay signed in). */
+export async function signOut(c: Context<AppEnv>) {
+  const token = c.req.header("authorization")!.match(/^Bearer (.+)$/)![1];
+  await c.env.DB.prepare(`DELETE FROM sessions WHERE token_hash = ?1`).bind(await sha256Hex(token)).run();
+  return c.json({ ok: true });
+}

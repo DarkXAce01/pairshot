@@ -86,4 +86,12 @@ class HttpCloudApiTest {
         assertThat(r.webhooks.single().createdAt).isEqualTo(5)
         assertThat(r.deliveries.single().lastStatus).isEqualTo(500)
     }
+
+    @Test fun `signing out ends the session on the server`() = runBlocking {
+        reply(200, """{"ok":true}""")
+        HttpCloudApi(base, "tok").signOut()
+        val (line, headers, _) = seen()
+        assertThat(line).isEqualTo("DELETE /v1/session")
+        assertThat(headers["authorization"]).isEqualTo("Bearer tok")
+    }
 }

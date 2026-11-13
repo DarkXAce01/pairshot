@@ -184,6 +184,11 @@ class CloudViewModel @Inject constructor(
 
     fun dismissReveal() = extras.update { it.copy(reveal = null) }
 
+    fun signOut() = run("Signed out. Your jobs and links are still here; the next Send asks you to sign in.") {
+        session.signOut()
+        extras.value = CloudExtras()
+    }
+
     fun deleteCloud() = run("Everything on the server is gone. Your jobs and photos on this phone are untouched.") {
         session.call { it.deleteEverything() }
         session.forgetAccount()
@@ -204,6 +209,7 @@ fun CloudScreen(onBack: () -> Unit, vm: CloudViewModel = hiltViewModel()) {
     var server by remember(s.serverUrl) { mutableStateOf(s.serverUrl) }
     var hookUrl by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmSignOut by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -358,6 +364,13 @@ fun CloudScreen(onBack: () -> Unit, vm: CloudViewModel = hiltViewModel()) {
             }
 
             if (s.signedIn) {
+                Section("ACCOUNT") {
+                    Text(
+                        s.email?.let { "Signed in as $it." } ?: "Connected without Google (from test mode). Sign out, then send, to link your Google account.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    OutlinedButton(onClick = { confirmSignOut = true }, enabled = !x.busy) { Text("Sign out") }
+                }
                 Section("YOUR DATA") {
                     Text(
                         "Deletes every link, photo and CRM job on the server. Clients see a \"closed\" page. Nothing on this phone is touched.",
@@ -382,6 +395,15 @@ fun CloudScreen(onBack: () -> Unit, vm: CloudViewModel = hiltViewModel()) {
             },
             confirmButton = { TextButton(onClick = { copy(context, secret); vm.dismissReveal() }) { Text("Copy & close") } },
             dismissButton = { TextButton(onClick = vm::dismissReveal) { Text("Close") } },
+        )
+    }
+    if (confirmSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            title = { Text("Sign out?") },
+            text = { Text("Your jobs, photos and sent links stay as they are. Links keep working for clients. You'll sign in again the next time you send.") },
+            confirmButton = { TextButton(onClick = { confirmSignOut = false; vm.signOut() }) { Text("Sign out") } },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
         )
     }
     if (confirmDelete) {

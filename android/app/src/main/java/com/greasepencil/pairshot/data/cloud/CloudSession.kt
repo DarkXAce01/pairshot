@@ -142,6 +142,16 @@ class CloudSession @Inject constructor(@ApplicationContext private val context: 
 
     suspend fun setInboundUrl(url: String) { context.cloudStore.edit { it[Keys.inbound] = url } }
 
+    /**
+     * Signs this phone out. The server forgets the session (best effort: offline still signs out here).
+     * Jobs, photos and sent links stay; the next Send asks for Google again.
+     */
+    suspend fun signOut() {
+        val s = state.first()
+        if (s.token != null && s.serverUrl.isNotBlank()) runCatching { HttpCloudApi(s.serverUrl, s.token).signOut() }
+        forgetAccount()
+    }
+
     /** After deleting cloud data: keep the server address and phone id, forget the rest. */
     suspend fun forgetAccount() {
         context.cloudStore.edit {

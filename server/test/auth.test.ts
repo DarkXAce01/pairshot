@@ -78,6 +78,14 @@ describe("signing in", () => {
     });
   });
 
+  it("signing out ends only that session", async () => {
+    const { token, deviceId } = await signIn();
+    const other = await json(await call("POST", "/v1/auth", { body: { deviceId } }));
+    expect((await call("DELETE", "/v1/session", { token })).status).toBe(200);
+    expect((await call("GET", "/v1/me", { token })).status).toBe(401);
+    expect((await call("GET", "/v1/me", { token: other.token })).status).toBe(200);
+  });
+
   it("limits requests per minute", async () => {
     const { token } = await signIn();
     let last = 200;
