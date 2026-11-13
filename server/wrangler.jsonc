@@ -7,8 +7,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
   "d1_databases": [
-    // database_id is filled in when the real Cloudflare database is created; local dev doesn't need it.
-    { "binding": "DB", "database_name": "pairshot", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+    // The real Cloudflare database (local dev ignores the id).
+    { "binding": "DB", "database_name": "pairshot", "database_id": "b3fdb886-a22c-4a44-b94f-4b6aadf29502", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "pairshot-photos" }],
   "triggers": { "crons": ["*/5 * * * *"] },
