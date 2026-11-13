@@ -15,8 +15,8 @@
   "vars": {
     // Test mode: sign in without Google, "Pretend Pro" works. Set "false" once GOOGLE_CLIENT_ID is filled in
     // (docs/google-sign-in.md). `npm run dev` and the tests always run in test mode.
-    "DEV_MODE": "true",
-    "GOOGLE_CLIENT_ID": "",
+    "DEV_MODE": "false",
+    "GOOGLE_CLIENT_ID": "118026851240-ucj9denba83declo3r8p6521ok1ibc2q.apps.googleusercontent.com",
     // Free uploads pause when everything stored passes this (bytes). 10 GB = R2's free allowance.
     "FREE_STORAGE_BRAKE_BYTES": "10737418240"
   }
