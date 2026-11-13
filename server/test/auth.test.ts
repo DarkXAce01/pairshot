@@ -49,6 +49,29 @@ describe("signing in", () => {
       expect((await json(res)).message).toContain("u2@example.com");
     });
 
+    it("a phone that used test sign-in keeps its account when it signs in with Google", async () => {
+      const dev = await json(await call("POST", "/v1/auth", { body: { deviceId: "phone-g-0004" } }));
+      const g = await json(await call("POST", "/v1/auth", { env: googleEnv, body: { deviceId: "phone-g-0004", googleIdToken: await idToken("u5") } }));
+      expect(g.account.id).toBe(dev.account.id);
+      expect(g.account.email).toBe("u5@example.com");
+      // The old session still works, and test sign-in on that phone no longer finds the account.
+      expect((await call("GET", "/v1/me", { token: dev.token })).status).toBe(200);
+      const again = await json(await call("POST", "/v1/auth", { body: { deviceId: "phone-g-0004" } }));
+      expect(again.account.id).not.toBe(dev.account.id);
+    });
+
+    it("the server can accept more than one client id", async () => {
+      const env = { ...googleEnv, GOOGLE_CLIENT_ID: "web-1, client-123" };
+      const res = await call("POST", "/v1/auth", { env, body: { deviceId: "phone-g-0005", googleIdToken: await idToken("u6") } });
+      expect(res.status).toBe(200);
+    });
+
+    it("the Pro test switch is gone outside test mode", async () => {
+      const g = await json(await call("POST", "/v1/auth", { env: googleEnv, body: { deviceId: "phone-g-0006", googleIdToken: await idToken("u7") } }));
+      const res = await call("POST", "/v1/dev/plan", { env: googleEnv, token: g.token, body: { plan: "pro" } });
+      expect(res.status).toBe(404);
+    });
+
     it("a token for another app is refused", async () => {
       const res = await call("POST", "/v1/auth", { env: googleEnv, body: { deviceId: "phone-g-0003", googleIdToken: await idToken("u4", "someone-else") } });
       expect(res.status).toBe(401);

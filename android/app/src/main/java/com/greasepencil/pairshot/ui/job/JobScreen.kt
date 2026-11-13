@@ -152,6 +152,9 @@ class JobViewModel @Inject constructor(
         }
     }
 
+    suspend fun needsGoogle() = cloud.needsGoogle()
+    suspend fun signInWithGoogle(idToken: String) = cloud.signInWithGoogle(idToken)
+
     fun send() = viewModelScope.launch {
         val first = link.value.gallery?.url == null || link.value.gallery?.remoteState in setOf("revoked", "expired")
         sender.queue(jobId, shareWhenReady = first)
@@ -231,7 +234,17 @@ fun JobScreen(
             androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
         ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        vm.send()
+        scope.launch {
+            // The first Send is where Google sign-in happens; never before.
+            if (vm.needsGoogle()) {
+                val signedIn = runCatching { vm.signInWithGoogle(com.greasepencil.pairshot.data.cloud.GoogleAuth.idToken(context)) }
+                signedIn.exceptionOrNull()?.let { e ->
+                    if (e !is com.greasepencil.pairshot.data.cloud.SignInCancelled) snackbar.showSnackbar(e.message ?: "Couldn't sign in.")
+                    return@launch
+                }
+            }
+            vm.send()
+        }
         Unit
     }
     var menu by remember { mutableStateOf(false) }

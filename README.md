@@ -30,7 +30,8 @@ By Grease Pencil Studio. The full plan is in [PLAN.md](PLAN.md).
   views, and API keys for Zapier and Make. See [docs/api.md](docs/api.md).
 - How to try it on a phone: [docs/testing-cloud.md](docs/testing-cloud.md).
 
-Not built yet: the real Cloudflare deploy, Google sign-in, Play Billing for Pro.
+Live at https://pairshot.pairshot-server.workers.dev (test mode). Google sign-in is built and waits for a
+Google Cloud client ID ([docs/google-sign-in.md](docs/google-sign-in.md)). Not built yet: Play Billing for Pro.
 
 ## Build and run
 
@@ -62,7 +63,7 @@ npm ci && npm run typecheck && npm test
 - Robolectric tests of the database, files and every schema migration
 - The client page template run in a simulated browser (rendering, escaping, links, slider)
 - Android lint (fails the build on errors)
-- Server: 63 tests run inside the real Workers runtime (local D1 and R2): every limit, galleries,
+- Server: 66 tests run inside the real Workers runtime (local D1 and R2): every limit, galleries,
   photo checks, CRM field reading, signed webhooks with retries, the API, cleanup
 - App ↔ server: the send pipeline, CRM sync and HTTP client against a fake server, plus an
   end-to-end test against the real one (`PAIRSHOT_SERVER=…`, see docs/testing-cloud.md)

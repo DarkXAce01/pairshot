@@ -19,7 +19,9 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Where links are sent from. Empty in builds for now: set it in Settings → Cloud & CRM.
-        buildConfigField("String", "DEFAULT_SERVER_URL", "\"\"")
+        buildConfigField("String", "DEFAULT_SERVER_URL", "\"${providers.gradleProperty("pairshot.serverUrl").getOrElse("")}\"")
+        // Google sign-in: the *Web* OAuth client id from Google Cloud (not secret). Empty = test sign-in (dev servers only).
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("pairshot.googleWebClientId").getOrElse("")}\"")
     }
 
     buildTypes {
@@ -92,6 +94,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.exifinterface)
     implementation(libs.androidx.webkit)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play)
+    implementation(libs.googleid)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

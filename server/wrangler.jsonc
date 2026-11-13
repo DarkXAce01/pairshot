@@ -13,7 +13,8 @@
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "pairshot-photos" }],
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
-    // Local development: sign in without Google, switch plans freely. MUST be "false" in production.
+    // Test mode: sign in without Google, "Pretend Pro" works. Set "false" once GOOGLE_CLIENT_ID is filled in
+    // (docs/google-sign-in.md). `npm run dev` and the tests always run in test mode.
     "DEV_MODE": "true",
     "GOOGLE_CLIENT_ID": "",
     // Free uploads pause when everything stored passes this (bytes). 10 GB = R2's free allowance.

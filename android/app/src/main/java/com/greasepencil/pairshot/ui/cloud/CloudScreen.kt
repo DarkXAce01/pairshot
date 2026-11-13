@@ -124,8 +124,14 @@ class CloudViewModel @Inject constructor(
 
     fun setServer(url: String) = run("Saved.") { session.setServerUrl(url) }
 
-    fun connect() = run("Connected.") {
-        session.api()
+    /** [googleToken] fetches a Google ID token (needs the screen); used only when Google sign-in is set up. */
+    fun connect(googleToken: suspend () -> String) = run {
+        try {
+            if (session.needsGoogle()) session.signInWithGoogle(googleToken()) else session.api()
+        } catch (e: com.greasepencil.pairshot.data.cloud.SignInCancelled) {
+            return@run
+        }
+        msgs.send("Connected.")
         load().join()
     }
 
@@ -228,12 +234,22 @@ fun CloudScreen(onBack: () -> Unit, vm: CloudViewModel = hiltViewModel()) {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { vm.setServer(server) }, enabled = server.trim() != s.serverUrl) { Text("Save") }
-                    Button(onClick = vm::connect, enabled = s.serverUrl.isNotBlank() && !x.busy) {
-                        Text(if (s.signedIn) "Refresh" else "Connect")
+                    Button(
+                        onClick = { vm.connect { com.greasepencil.pairshot.data.cloud.GoogleAuth.idToken(context) } },
+                        enabled = s.serverUrl.isNotBlank() && !x.busy,
+                    ) {
+                        Text(
+                            when {
+                                s.signedIn -> "Refresh"
+                                com.greasepencil.pairshot.data.cloud.GoogleAuth.configured -> "Sign in with Google"
+                                else -> "Connect"
+                            },
+                        )
                     }
                 }
                 Text(
-                    if (s.signedIn) "Connected · ${if (s.isPro) "Pro" else "Free plan"}" else "Not connected yet. Sending your first link connects.",
+                    if (s.signedIn) "Connected · ${if (s.isPro) "Pro" else "Free plan"}${s.email?.let { " · $it" } ?: ""}"
+                    else "Not connected yet. Sending your first link connects.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }

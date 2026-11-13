@@ -64,7 +64,7 @@ test server, so only run it while you're testing. You get a new address each tim
 ## Automated checks
 
 ```
-cd server && npm test        # 63 tests: limits, galleries, CRM parsing, webhooks, API, cleanup
+cd server && npm test        # 66 tests: limits, galleries, CRM parsing, webhooks, API, cleanup
 cd android && ./gradlew :app:testDebugUnitTest
 
 # the app's real network code against the running server:

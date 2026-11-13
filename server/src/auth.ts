@@ -18,7 +18,7 @@ export async function verifyGoogle(env: Env, idToken: string): Promise<{ sub: st
   try {
     const { payload } = await jwtVerify(idToken, keysFor(env), {
       issuer: ["accounts.google.com", "https://accounts.google.com"],
-      audience: env.GOOGLE_CLIENT_ID,
+      audience: env.GOOGLE_CLIENT_ID.split(",").map((x) => x.trim()).filter(Boolean),
     });
     if (!payload.sub) throw new Error("no subject");
     return { sub: payload.sub, email: typeof payload.email === "string" ? payload.email : null };
@@ -56,7 +56,15 @@ export async function signIn(c: Context<AppEnv>) {
       if (other) {
         fail(409, "phone_has_account", `This phone already has a Pairshot account${other.email ? ` (${other.email})` : ""}. Sign in with that one.`);
       }
-      account = await createAccount(env, { googleSub: google.sub, deviceId, email: google.email });
+      // This phone used the app before Google sign-in existed (test mode): keep that account and its links.
+      const deviceOnly = await env.DB.prepare(`SELECT * FROM accounts WHERE device_id = ?1 AND google_sub IS NULL`)
+        .bind(deviceId).first<Account>();
+      if (deviceOnly) {
+        account = (await env.DB.prepare(`UPDATE accounts SET google_sub = ?2, email = ?3 WHERE id = ?1 RETURNING *`)
+          .bind(deviceOnly.id, google.sub, google.email).first<Account>())!;
+      } else {
+        account = await createAccount(env, { googleSub: google.sub, deviceId, email: google.email });
+      }
     }
   } else {
     if (!isDev(env)) fail(401, "sign_in_needed", "Sign in with Google to send links.");

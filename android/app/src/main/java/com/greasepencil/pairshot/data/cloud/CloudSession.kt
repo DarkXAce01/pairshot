@@ -82,11 +82,28 @@ class CloudSession @Inject constructor(@ApplicationContext private val context: 
         val s = state.first()
         val server = requireServer(s)
         if (s.token != null) return HttpCloudApi(server, s.token)
-        val deviceId = s.deviceId.ifEmpty { Ids.new().also { id -> context.cloudStore.edit { it[Keys.device] = id } } }
-        val auth = HttpCloudApi(server, null).signIn(AuthRequest(deviceId))
+        // With Google set up, signing in needs a screen (the Google sheet), so it can't happen here.
+        if (GoogleAuth.configured) throw CloudException(401, "sign_in_needed", "Sign in with Google to send links.")
+        signIn(server, AuthRequest(deviceId()))
+    }
+
+    /** Signs in with a token from [GoogleAuth.idToken]. */
+    suspend fun signInWithGoogle(idToken: String) = signInLock.withLock {
+        signIn(requireServer(state.first()), AuthRequest(deviceId(), googleIdToken = idToken))
+        Unit
+    }
+
+    /** Signing in is needed before anything can be sent (Google sheet first). */
+    suspend fun needsGoogle(): Boolean = GoogleAuth.configured && !state.first().signedIn
+
+    private suspend fun deviceId(): String =
+        state.first().deviceId.ifEmpty { Ids.new().also { id -> context.cloudStore.edit { it[Keys.device] = id } } }
+
+    private suspend fun signIn(server: String, req: AuthRequest): CloudApi {
+        val auth = HttpCloudApi(server, null).signIn(req)
         context.cloudStore.edit { it[Keys.token] = auth.token }
         saveAccount(auth.account)
-        HttpCloudApi(server, auth.token)
+        return HttpCloudApi(server, auth.token)
     }
 
     private fun requireServer(s: CloudState): String {
