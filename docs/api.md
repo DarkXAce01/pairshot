@@ -10,7 +10,7 @@ Google Sheets and others.
 | Pairshot → CRM | "Link sent", "link updated" and "client opened it" | **Webhooks** you add in the app |
 | Your tools → Pairshot | Look up a job's link, list links, add jobs | **API key** (`X-Api-Key`) |
 
-All of these are in the app under **Settings → Cloud & CRM**.
+All of these are in the app under **Settings → Account & CRM**.
 
 ## 1. Jobs in: your inbound address
 

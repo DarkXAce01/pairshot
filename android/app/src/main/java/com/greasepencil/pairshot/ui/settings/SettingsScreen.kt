@@ -164,7 +164,7 @@ fun SettingsScreen(onBack: () -> Unit, onCloud: () -> Unit = {}, vm: SettingsVie
 
             Text("LINKS & CRM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             androidx.compose.material3.OutlinedButton(onClick = onCloud, modifier = Modifier.fillMaxWidth()) {
-                Text("Cloud & CRM: account, usage, Zapier, webhooks")
+                Text("Account & CRM: sign in, usage, Zapier, webhooks")
             }
 
             Spacer(Modifier.height(32.dp))

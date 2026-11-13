@@ -29,7 +29,7 @@ Dev mode is on, so a phone can connect without Google sign-in, and the app has a
 2. Allow the port once, in an Administrator PowerShell:
    `New-NetFirewallRule -DisplayName "Pairshot dev" -Direction Inbound -Protocol TCP -LocalPort 8787 -Action Allow`
 3. Find the PC's Wi-Fi address with `ipconfig` (e.g. `192.168.1.20`).
-4. In the app: **Settings → Cloud & CRM → Server address** = `http://192.168.1.20:8787`, then Save and Connect.
+4. In the app: **Settings → Account & CRM → Developer → Server address** = `http://192.168.1.20:8787`, then Save address and Connect to the test server.
 
 Debug builds may use plain `http://`. Release builds only allow https.
 

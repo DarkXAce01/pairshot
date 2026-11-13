@@ -229,23 +229,52 @@ fun JobScreen(
     var confirmClose by remember { mutableStateOf(false) }
     // Asked once, at the first Send: so a link that waits for signal can say when it has gone.
     val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    val send = {
+    // The first Send is where sign-in happens; never before. A short sheet says why, then Google's own sheet.
+    var signInSheet by remember { mutableStateOf(false) }
+    var signingIn by remember { mutableStateOf(false) }
+    var signInFailed by remember { mutableStateOf<String?>(null) }
+    val askNotifications = {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
         ) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+    val send = {
         scope.launch {
-            // The first Send is where Google sign-in happens; never before.
             if (vm.needsGoogle()) {
-                val signedIn = runCatching { vm.signInWithGoogle(com.greasepencil.pairshot.data.cloud.GoogleAuth.idToken(context)) }
-                signedIn.exceptionOrNull()?.let { e ->
-                    if (e !is com.greasepencil.pairshot.data.cloud.SignInCancelled) snackbar.showSnackbar(e.message ?: "Couldn't sign in.")
-                    return@launch
-                }
+                signInFailed = null
+                signInSheet = true
+            } else {
+                askNotifications()
+                vm.send()
             }
-            vm.send()
         }
         Unit
+    }
+    val continueWithGoogle = {
+        scope.launch {
+            signingIn = true
+            signInFailed = null
+            val result = runCatching { vm.signInWithGoogle(com.greasepencil.pairshot.data.cloud.GoogleAuth.idToken(context)) }
+            signingIn = false
+            result.exceptionOrNull()?.let { e ->
+                signInFailed = com.greasepencil.pairshot.ui.cloud.signInError(e)
+                return@launch
+            }
+            signInSheet = false
+            askNotifications()
+            vm.send()
+            launch { snackbar.showSnackbar("Signed in. Sending your link…") }
+        }
+        Unit
+    }
+    if (signInSheet) {
+        com.greasepencil.pairshot.ui.cloud.SignInSheet(
+            busy = signingIn,
+            error = signInFailed,
+            onContinue = continueWithGoogle,
+            onDismiss = { signInSheet = false },
+        )
     }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }

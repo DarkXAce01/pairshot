@@ -30,7 +30,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.dp
 import com.greasepencil.pairshot.data.db.GalleryEntity
 import com.greasepencil.pairshot.data.db.SendState
@@ -61,7 +66,7 @@ fun LinkCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when {
                 g == null || (closed && g.sendState == SendState.SENT) -> {
-                    Text("Client link", style = MaterialTheme.typography.titleMedium)
+                    Text("Client link", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
                     if (closed) {
                         Text(
                             if (g!!.remoteState == "expired") "The last link expired." else "You closed the last link.",
@@ -74,14 +79,14 @@ fun LinkCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Button(onClick = onSend, enabled = s.canSend, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                    Button(onClick = onSend, enabled = s.canSend, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                         Icon(Icons.AutoMirrored.Outlined.Send, null)
                         Spacer(Modifier.width(8.dp))
                         Text(if (closed) "Send a new link" else "Send link to client")
                     }
                 }
                 g.sendState == SendState.QUEUED || g.sendState == SendState.SENDING -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(12.dp))
                         Text(
@@ -97,27 +102,27 @@ fun LinkCard(
                     }
                 }
                 g.sendState == SendState.FAILED -> {
-                    Text(if (g.url == null) "Not sent" else "Not updated", style = MaterialTheme.typography.titleMedium)
-                    Text(g.error ?: "Something went wrong.", color = MaterialTheme.colorScheme.error)
+                    Text(if (g.url == null) "Not sent" else "Not updated", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                    Text(g.error ?: "Something went wrong.", color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = onSend, enabled = s.canSend) { Text("Try again") }
                         if (g.url != null) OutlinedButton(onClick = onShare) { Text("Share the old link") }
                     }
                 }
                 else -> {
-                    Text("Client link", style = MaterialTheme.typography.titleMedium)
+                    Text("Client link", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
                     Text(g.url ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.primary)
                     Text(seen(g, s.now), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (clientPhone != null) {
-                            Button(onClick = onText, modifier = Modifier.weight(1f)) {
+                            Button(onClick = onText, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                                 Icon(Icons.Outlined.Sms, null); Spacer(Modifier.width(6.dp)); Text("Text")
                             }
                         }
-                        OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                             Icon(Icons.Outlined.Share, null); Spacer(Modifier.width(6.dp)); Text("Share")
                         }
-                        OutlinedButton(onClick = onCopy, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = onCopy, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                             Icon(Icons.Outlined.ContentCopy, null); Spacer(Modifier.width(6.dp)); Text("Copy")
                         }
                     }
@@ -125,7 +130,7 @@ fun LinkCard(
                         Text("You've changed things since sending.", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = onSend, enabled = s.canSend, modifier = Modifier.fillMaxWidth()) { Text("Update the link") }
                     }
-                    TextButton(onClick = onClose) { Text("Close link", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    TextButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) { Text("Close link…", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }

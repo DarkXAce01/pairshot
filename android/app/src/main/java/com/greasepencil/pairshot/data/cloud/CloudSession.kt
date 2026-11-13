@@ -107,7 +107,7 @@ class CloudSession @Inject constructor(@ApplicationContext private val context: 
     }
 
     private fun requireServer(s: CloudState): String {
-        if (s.serverUrl.isBlank()) throw CloudException(0, "no_server", "Add the server address in Settings → Cloud & CRM first.")
+        if (s.serverUrl.isBlank()) throw CloudException(0, "no_server", "Add the server address in Settings → Account & CRM first.")
         return s.serverUrl
     }
 
