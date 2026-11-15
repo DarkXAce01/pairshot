@@ -39,8 +39,12 @@ import com.greasepencil.pairshot.ui.job.NewJobScreen
 import com.greasepencil.pairshot.ui.onboarding.OnboardingScreen
 import com.greasepencil.pairshot.ui.pair.PairScreen
 import com.greasepencil.pairshot.ui.preview.PreviewScreen
+import com.greasepencil.pairshot.ui.account.accountGraph
+import com.greasepencil.pairshot.ui.settings.AboutScreen
+import com.greasepencil.pairshot.ui.settings.CameraSettingsScreen
+import com.greasepencil.pairshot.ui.settings.SettingsNav
 import com.greasepencil.pairshot.ui.settings.SettingsScreen
-import com.greasepencil.pairshot.ui.cloud.CloudScreen
+import com.greasepencil.pairshot.ui.settings.StorageScreen
 
 @Composable
 fun AppNav(onboarded: Boolean, openJob: String? = null, onOpenedJob: () -> Unit = {}) {
@@ -96,8 +100,7 @@ private fun AppGraph(nav: NavHostController, start: Any, tabFade: Int) {
             HomeScreen(
                 onOpenJob = { nav.navigate(JobRoute(it)) },
                 onNewJob = { nav.navigate(NewJobRoute()) },
-                // Free up space lives in the Settings tab until it gets its own page.
-                onFreeUpSpace = { nav.selectTab(AppTab.SETTINGS) },
+                onFreeUpSpace = { nav.navigate(StorageRoute) },
                 onComponentGallery = if (BuildConfig.DEBUG) {
                     { nav.navigate(ComponentGalleryRoute) }
                 } else {
@@ -131,10 +134,29 @@ private fun AppGraph(nav: NavHostController, start: Any, tabFade: Int) {
             )
         }
         composable<PreviewRoute> { PreviewScreen(onBack = { nav.popBackStack() }) }
-        composable<BrandRoute> { BrandScreen(onMessage = { nav.navigate(MessageRoute) }) }
+        composable<BrandRoute> { BrandScreen(onMessage = { nav.navigate(MessageRoute) }, onSeePro = { nav.navigate(ProRoute) }) }
         composable<MessageRoute> { MessageScreen(onBack = { nav.popBackStack() }) }
-        composable<SettingsRoute> { SettingsScreen(onCloud = { nav.navigate(CloudRoute) }) }
-        composable<CloudRoute> { CloudScreen(onBack = { nav.popBackStack() }) }
+        composable<SettingsRoute> {
+            SettingsScreen(
+                SettingsNav(
+                    onAccount = { nav.navigate(AccountRoute) },
+                    onPro = { nav.navigate(ProRoute) },
+                    onCamera = { nav.navigate(CameraSettingsRoute) },
+                    onStorage = { nav.navigate(StorageRoute) },
+                    onConnections = { nav.navigate(ConnectionsRoute) },
+                    onAbout = { nav.navigate(AboutRoute) },
+                    onDeveloper = if (BuildConfig.DEBUG) {
+                        { nav.navigate(DeveloperRoute) }
+                    } else {
+                        null
+                    },
+                ),
+            )
+        }
+        composable<CameraSettingsRoute> { CameraSettingsScreen(onBack = { nav.popBackStack() }) }
+        composable<StorageRoute> { StorageScreen(onBack = { nav.popBackStack() }) }
+        composable<AboutRoute> { AboutScreen(onBack = { nav.popBackStack() }) }
+        accountGraph(nav)
         if (BuildConfig.DEBUG) {
             composable<ComponentGalleryRoute> { ComponentGalleryScreen(onBack = { nav.popBackStack() }) }
         }

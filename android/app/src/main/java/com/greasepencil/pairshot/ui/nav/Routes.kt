@@ -12,8 +12,21 @@ import kotlinx.serialization.Serializable
 @Serializable data object BrandRoute
 @Serializable data object MessageRoute
 @Serializable data class PreviewRoute(val jobId: String)
-/** Account & CRM, until the Settings pages replace it. */
-@Serializable data object CloudRoute
+@Serializable data object CameraSettingsRoute
+@Serializable data object StorageRoute
+@Serializable data object AboutRoute
+
+/** The account pages share one CloudViewModel, scoped to this graph. */
+@Serializable data object AccountGraph
+@Serializable data object AccountRoute
+@Serializable data object ProRoute
+@Serializable data object ConnectionsRoute
+@Serializable data object IncomingJobsRoute
+@Serializable data object CrmUpdatesRoute
+@Serializable data object DeliveryLogRoute
+@Serializable data object ApiKeysRoute
+/** Debug builds only. */
+@Serializable data object DeveloperRoute
 
 /** Debug builds only: every Ps component in every state. */
 @Serializable data object ComponentGalleryRoute
