@@ -41,6 +41,7 @@ import com.greasepencil.pairshot.data.prefs.SettingsStore
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.data.repo.PhotoImporter
 import com.greasepencil.pairshot.domain.AreaPresets
+import com.greasepencil.pairshot.domain.CollageFrame
 import com.greasepencil.pairshot.domain.CollageLayout
 import com.greasepencil.pairshot.ui.components.BeforeAfterSlider
 import com.greasepencil.pairshot.ui.components.CollageExporter
@@ -52,10 +53,8 @@ import com.greasepencil.pairshot.ui.components.ps.PsConfirmDialog
 import com.greasepencil.pairshot.ui.components.ps.PsListBlock
 import com.greasepencil.pairshot.ui.components.ps.PsListRow
 import com.greasepencil.pairshot.ui.components.ps.PsScaffold
-import com.greasepencil.pairshot.ui.components.ps.PsSheet
 import com.greasepencil.pairshot.ui.components.ps.PsSnackbarHost
 import com.greasepencil.pairshot.ui.components.ps.PsTopBar
-import com.greasepencil.pairshot.ui.components.ps.psSheetBleed
 import com.greasepencil.pairshot.ui.nav.PairRoute
 import com.greasepencil.pairshot.ui.theme.Ps
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -122,22 +121,19 @@ class PairViewModel @Inject constructor(
     fun giveAfterTo(otherPairId: String) = viewModelScope.launch { repo.swapAfters(pairId, otherPairId) }
     fun setCrop(c: com.greasepencil.pairshot.domain.Crop) = viewModelScope.launch { repo.setCrop(pairId, c) }
 
+    fun setCollageLayout(style: CollageLayout.Style) = viewModelScope.launch { settingsStore.setCollageLayout(style.name) }
+
     fun setCover() = viewModelScope.launch { repo.setCover(pairId) }
     fun setHidden(h: Boolean) = viewModelScope.launch { repo.setHidden(pairId, h) }
     fun swap() = viewModelScope.launch { repo.swap(pairId) }
     fun delete() = viewModelScope.launch { repo.deletePair(pairId) }
 }
 
-/** The two share layouts offered until the share-image sheet arrives. */
-private val shareLayouts = listOf(
-    CollageLayout.Style.SIDE_BY_SIDE to "Side by side",
-    CollageLayout.Style.STACKED to "Before on top",
-)
-
 @Composable
 fun PairScreen(
     onBack: () -> Unit,
     onRetakeAfter: (jobId: String, pairId: String) -> Unit,
+    onSeePro: () -> Unit = {},
     vm: PairViewModel = hiltViewModel(),
 ) {
     val s by vm.state.collectAsStateWithLifecycle()
@@ -255,23 +251,31 @@ fun PairScreen(
         )
     }
     if (shareSheet) {
-        PsSheet("Share as one image", onDismiss = { shareSheet = false }) {
-            Column(Modifier.psSheetBleed()) {
-                shareLayouts.forEach { (style, label) ->
-                    PsListRow(label, showChevron = false, onClick = {
-                        shareSheet = false
-                        exporting = true
-                        scope.launch {
-                            runCatching {
-                                CollageExporter.export(context, row, style, settings.businessName, watermark = !settings.isPro)
-                            }.onSuccess { CollageExporter.share(context, it) }
-                                .onFailure { snackbar.showSnackbar("Couldn't make the image. Try again.") }
-                            exporting = false
-                        }
-                    })
-                }
-            }
+        val look = remember(settings.clientTemplate, settings.accent, settings.businessName, settings.isPro) {
+            CollageExporter.Look(
+                CollageFrame.of(settings.clientTemplate, settings.accent),
+                settings.businessName,
+                watermark = !settings.isPro,
+            )
         }
+        ShareImageSheet(
+            pair = row,
+            look = look,
+            initial = CollageLayout.Style.fromStored(settings.collageLayout),
+            busy = exporting,
+            onSelect = vm::setCollageLayout,
+            onShare = { style ->
+                exporting = true
+                scope.launch {
+                    runCatching { CollageExporter.export(context, row, style, look) }
+                        .onSuccess { shareSheet = false; CollageExporter.share(context, it) }
+                        .onFailure { shareSheet = false; snackbar.showSnackbar("Couldn't make the image. Try again.") }
+                    exporting = false
+                }
+            },
+            onSeePro = { shareSheet = false; onSeePro() },
+            onDismiss = { if (!exporting) shareSheet = false },
+        )
     }
     if (cropping) {
         val (w, h) = com.greasepencil.pairshot.domain.Rotation.size(row.beforeWidth, row.beforeHeight, row.beforeRotation)

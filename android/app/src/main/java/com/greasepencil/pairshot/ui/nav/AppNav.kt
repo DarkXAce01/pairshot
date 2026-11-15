@@ -131,6 +131,7 @@ private fun AppGraph(nav: NavHostController, start: Any, tabFade: Int) {
             PairScreen(
                 onBack = { nav.popBackStack() },
                 onRetakeAfter = { jobId, pairId -> nav.navigate(CameraRoute(jobId, after = true, pairId = pairId)) },
+                onSeePro = { nav.navigate(ProRoute) },
             )
         }
         composable<PreviewRoute> { PreviewScreen(onBack = { nav.popBackStack() }) }

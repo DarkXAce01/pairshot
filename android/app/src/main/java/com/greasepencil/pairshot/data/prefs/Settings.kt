@@ -58,6 +58,8 @@ data class AppSettings(
     val accent: String? = null,
     /** The client page style used unless a job picks its own. */
     val clientTemplate: ClientTemplate = ClientTemplate.CLASSIC,
+    /** The share-image layout used last (a `CollageLayout.Style` name). */
+    val collageLayout: String = "SIDE_BY_SIDE",
 ) {
     companion object {
         const val DEFAULT_TEMPLATE = "Hi {first_name}, here's your {service} before & after: {link}"
@@ -85,6 +87,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val themeMode = stringPreferencesKey("theme_mode")
         val accent = stringPreferencesKey("accent")
         val clientTemplate = stringPreferencesKey("client_template")
+        val collageLayout = stringPreferencesKey("collage_layout")
     }
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -102,6 +105,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             themeMode = ThemeMode.fromStored(p[Keys.themeMode]),
             accent = BrandLook.normalise(p[Keys.accent]),
             clientTemplate = ClientTemplate.fromId(p[Keys.clientTemplate]) ?: ClientTemplate.CLASSIC,
+            collageLayout = p[Keys.collageLayout] ?: "SIDE_BY_SIDE",
         )
     }
 
@@ -137,4 +141,5 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         if (n == null) it.remove(Keys.accent) else it[Keys.accent] = n
     }
     suspend fun setClientTemplate(t: ClientTemplate) = context.dataStore.edit { it[Keys.clientTemplate] = t.id }
+    suspend fun setCollageLayout(name: String) = context.dataStore.edit { it[Keys.collageLayout] = name }
 }
