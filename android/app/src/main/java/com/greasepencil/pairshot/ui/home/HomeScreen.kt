@@ -1,57 +1,56 @@
 package com.greasepencil.pairshot.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
 import com.greasepencil.pairshot.data.db.JobSummary
-import com.greasepencil.pairshot.domain.JobStatus
 import com.greasepencil.pairshot.data.repo.Clock
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.domain.HomeOrder
-import com.greasepencil.pairshot.ui.components.PhotoImage
+import com.greasepencil.pairshot.domain.JobStatus
+import com.greasepencil.pairshot.ui.brand.BrandViewModel
+import com.greasepencil.pairshot.ui.components.ps.PsBanner
+import com.greasepencil.pairshot.ui.components.ps.PsBannerTone
+import com.greasepencil.pairshot.ui.components.ps.PsButton
+import com.greasepencil.pairshot.ui.components.ps.PsButtonVariant
+import com.greasepencil.pairshot.ui.components.ps.PsEmptyState
+import com.greasepencil.pairshot.ui.components.ps.PsFab
+import com.greasepencil.pairshot.ui.components.ps.PsIconButton
+import com.greasepencil.pairshot.ui.components.ps.PsScaffold
+import com.greasepencil.pairshot.ui.components.ps.PsSearchField
+import com.greasepencil.pairshot.ui.components.ps.PsSectionHeader
+import com.greasepencil.pairshot.ui.components.ps.PsTabHeader
+import com.greasepencil.pairshot.ui.components.ps.psListBlockItems
+import com.greasepencil.pairshot.ui.theme.Ps
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -93,153 +92,125 @@ class HomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Section names: "Today" and "Earlier", or "Recent" when nothing is on today. */
+internal fun earlierSectionName(hasToday: Boolean): String = if (hasToday) "Earlier" else "Recent"
+
 @Composable
 fun HomeScreen(
     onOpenJob: (String) -> Unit,
     onNewJob: () -> Unit,
-    onSettings: () -> Unit,
+    onFreeUpSpace: () -> Unit,
     /** Debug builds only, until the Developer page exists: long-press "Jobs" for the component gallery. */
     onComponentGallery: (() -> Unit)? = null,
     vm: HomeViewModel = hiltViewModel(),
+    // Only for the business name over the title; HomeViewModel stays as it is.
+    brand: BrandViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val lowSpace by vm.lowSpace.collectAsStateWithLifecycle()
-    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { vm.checkSpace(); onPauseOrDispose { } }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+    val businessName = brand.settings.collectAsStateWithLifecycle().value?.businessName.orEmpty()
+    LifecycleResumeEffect(Unit) { vm.checkSpace(); onPauseOrDispose { } }
+    // The field keeps its own text so typing never jumps the cursor; the list follows vm.query.
+    var query by rememberSaveable { mutableStateOf(vm.query.value) }
+    var searching by rememberSaveable { mutableStateOf(query.isNotEmpty()) }
+    fun setQuery(q: String) { query = q; vm.query.value = q }
+    fun stopSearching() { setQuery(""); searching = false }
+    BackHandler(enabled = searching) { stopSearching() }
+
+    PsScaffold {
+        if (!state.loaded) return@PsScaffold
+        val empty = state.totalJobs == 0
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = if (empty) 24.dp else 104.dp)) {
+            item(key = "header") {
+                if (searching) {
+                    SearchHeader(query, ::setQuery, ::stopSearching)
+                } else {
                     val galleryEntry = onComponentGallery?.let { open ->
                         Modifier.pointerInput(open) { detectTapGestures(onLongPress = { open() }) }
                     } ?: Modifier
-                    Text("Jobs", style = MaterialTheme.typography.headlineSmall, modifier = galleryEntry)
-                },
-                actions = {
-                    IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
-                },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNewJob,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New job") },
-            )
-        },
-    ) { padding ->
-        if (!state.loaded) return@Scaffold
-        LazyColumn(
-            Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            lowSpace?.let { free ->
-                item { LowSpaceBanner(free, onSettings) }
-            }
-            if (state.totalJobs > 3) {
-                item {
-                    OutlinedTextField(
-                        value = state.query,
-                        onValueChange = { vm.query.value = it },
-                        placeholder = { Text("Search client, address, service") },
-                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    PsTabHeader(
+                        "Jobs",
+                        eyebrow = businessName.ifBlank { null },
+                        titleModifier = galleryEntry,
+                        actions = {
+                            if (state.totalJobs > 3) PsIconButton(Icons.Outlined.Search, "Search jobs", { searching = true })
+                        },
                     )
                 }
             }
-            if (state.totalJobs == 0) {
-                item { EmptyHome() }
+            lowSpace?.let { free ->
+                item(key = "lowSpace") {
+                    PsBanner(
+                        "Phone storage is nearly full",
+                        "Only ${"%.0f".format(free / 1e6)} MB left. New photos might not save.",
+                        Modifier.padding(top = 4.dp, bottom = 12.dp),
+                        tone = PsBannerTone.Warning,
+                        actionLabel = "Free up space",
+                        onAction = onFreeUpSpace,
+                    )
+                }
+            }
+            if (empty) {
+                item(key = "empty") {
+                    PsEmptyState(
+                        "No jobs yet",
+                        "Add a job, shoot the befores, then the afters. They pair up on their own.",
+                        Modifier.padding(top = 32.dp),
+                        actionLabel = "New job",
+                        onAction = onNewJob,
+                    )
+                }
             } else if (state.today.isEmpty() && state.recent.isEmpty()) {
-                item {
-                    Text("Nothing matches \"${state.query}\".", Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                item(key = "noMatch") {
+                    Text(
+                        "Nothing matches \"${state.query}\".",
+                        Modifier.padding(start = Ps.space.gutter, end = Ps.space.gutter, top = 24.dp),
+                        style = Ps.type.bodyS,
+                        color = Ps.colors.inkSoft,
+                    )
                 }
             }
             if (state.today.isNotEmpty()) {
-                item { SectionLabel("TODAY") }
-                items(state.today, key = { it.job.id }) { JobCard(it) { onOpenJob(it.job.id) } }
+                item(key = "todayHeader") { PsSectionHeader("Today", Modifier.padding(top = 12.dp)) }
+                psListBlockItems(state.today, key = { it.job.id }) { JobRow(it, { onOpenJob(it.job.id) }) }
             }
             if (state.recent.isNotEmpty()) {
-                item { SectionLabel(if (state.today.isEmpty()) "RECENT" else "OTHER JOBS") }
-                items(state.recent, key = { it.job.id }) { JobCard(it) { onOpenJob(it.job.id) } }
+                item(key = "recentHeader") {
+                    val gap = if (state.today.isEmpty()) 12.dp else Ps.space.sectionGap
+                    PsSectionHeader(earlierSectionName(state.today.isNotEmpty()), Modifier.padding(top = gap))
+                }
+                psListBlockItems(state.recent, key = { it.job.id }) { JobRow(it, { onOpenJob(it.job.id) }) }
             }
         }
-    }
-}
-
-/** The phone is nearly full: new photos could fail to save. */
-@Composable
-private fun LowSpaceBanner(free: Long, onSettings: () -> Unit) {
-    androidx.compose.material3.Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Phone storage is nearly full", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "Only ${"%.0f".format(free / 1e6)} MB left. New photos might not save. Free up space in Settings.",
-                style = MaterialTheme.typography.bodyMedium,
+        if (!empty) {
+            PsFab(
+                "New job",
+                Icons.Outlined.Add,
+                onNewJob,
+                Modifier.align(Alignment.BottomEnd).padding(end = Ps.space.gutter, bottom = 16.dp),
             )
-            androidx.compose.material3.TextButton(onClick = onSettings, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open Settings") }
         }
     }
 }
 
+/** Search in place of the header: the field, focused, and Cancel to go back to the header. */
 @Composable
-private fun EmptyHome() {
-    Column(Modifier.fillMaxWidth().padding(top = 64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("No jobs yet", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Tap New job, shoot your befores, then your afters. They pair up on their own.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-    )
-}
-
-@Composable
-private fun JobCard(summary: JobSummary, onClick: () -> Unit) {
-    val job = summary.job
+private fun SearchHeader(query: String, onQuery: (String) -> Unit, onCancel: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
     Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable(onClick = onClick)
-            .padding(10.dp),
+        Modifier.fillMaxWidth().padding(start = Ps.space.gutter, end = 8.dp, top = 16.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            summary.coverFile?.let { PhotoImage(it, summary.coverRotation ?: 0, Modifier.fillMaxSize()) }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(job.clientName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val sub = listOfNotNull(job.service, job.address).joinToString(" · ")
-            if (sub.isNotEmpty()) {
-                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Spacer(Modifier.height(4.dp))
-            Text(progressText(summary), style = MaterialTheme.typography.labelSmall, color = progressColor(summary))
-        }
-        Spacer(Modifier.width(8.dp))
-        StatusPill(statusOf(summary))
+        PsSearchField(
+            query,
+            onQuery,
+            Modifier.weight(1f),
+            placeholder = "Search client, address, service",
+            fieldModifier = Modifier.focusRequester(focus),
+        )
+        Spacer(Modifier.width(4.dp))
+        PsButton("Cancel", onCancel, variant = PsButtonVariant.Quiet)
     }
 }
 
@@ -251,32 +222,9 @@ fun statusOf(s: JobSummary): JobStatus = JobStatus.of(
     viewed = s.linkViewedAt != null,
 )
 
-/** The job's stage in a word; Sent and Seen stand out because they're about the client. */
-@Composable
-private fun StatusPill(status: JobStatus) {
-    val c = MaterialTheme.colorScheme
-    val (bg, fg) = when (status) {
-        JobStatus.SEEN -> c.primary to c.onPrimary
-        JobStatus.SENT -> c.primaryContainer to c.onPrimaryContainer
-        JobStatus.DONE -> c.secondaryContainer to c.onSecondaryContainer
-        else -> c.surfaceVariant to c.onSurfaceVariant
-    }
-    Text(
-        status.label,
-        style = MaterialTheme.typography.labelMedium,
-        color = fg,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 10.dp, vertical = 5.dp)
-            .semantics { contentDescription = "Status: ${status.label}" },
-    )
-}
-
 fun progressText(s: JobSummary): String = when {
     s.pairCount == 0 -> "NO PHOTOS YET"
     s.doneCount == s.pairCount -> "ALL ${s.pairCount} PAIRS DONE"
     else -> "${s.doneCount} OF ${s.pairCount} AFTERS"
 }
 
-@Composable
-private fun progressColor(s: JobSummary) =
-    if (s.pairCount > 0 && s.doneCount == s.pairCount) MaterialTheme.colorScheme.primary
-    else MaterialTheme.colorScheme.onSurfaceVariant

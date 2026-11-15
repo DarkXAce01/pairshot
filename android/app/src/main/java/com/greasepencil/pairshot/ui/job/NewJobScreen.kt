@@ -2,30 +2,17 @@ package com.greasepencil.pairshot.ui.job
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -40,7 +27,16 @@ import androidx.navigation.toRoute
 import com.greasepencil.pairshot.data.repo.Clock
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.domain.Schedule
+import com.greasepencil.pairshot.ui.components.ps.PsBottomBar
+import com.greasepencil.pairshot.ui.components.ps.PsButton
+import com.greasepencil.pairshot.ui.components.ps.PsChip
+import com.greasepencil.pairshot.ui.components.ps.PsChipRow
+import com.greasepencil.pairshot.ui.components.ps.PsScaffold
+import com.greasepencil.pairshot.ui.components.ps.PsSectionHeader
+import com.greasepencil.pairshot.ui.components.ps.PsTextField
+import com.greasepencil.pairshot.ui.components.ps.PsTopBar
 import com.greasepencil.pairshot.ui.nav.NewJobRoute
+import com.greasepencil.pairshot.ui.theme.Ps
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -112,55 +108,64 @@ class NewJobViewModel @Inject constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewJobScreen(onBack: () -> Unit, onCreated: (String) -> Unit, vm: NewJobViewModel = hiltViewModel()) {
     val f by vm.form.collectAsStateWithLifecycle()
     LaunchedEffect(f.savedId) {
         f.savedId?.let { if (vm.isEdit) onBack() else onCreated(it) }
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (vm.isEdit) "Edit job" else "New job", style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-            )
+    val gutter = Modifier.padding(horizontal = Ps.space.gutter)
+    PsScaffold(
+        topBar = { PsTopBar(if (vm.isEdit) "Edit job" else "New job", onBack = onBack) },
+        // PsBottomBar pads for the keyboard itself, so the button stays above it.
+        bottomBar = {
+            PsBottomBar {
+                PsButton(
+                    if (vm.isEdit) "Save" else "Create job",
+                    vm::save,
+                    Modifier.weight(1f),
+                    enabled = f.clientName.isNotBlank(),
+                    busy = f.saving,
+                )
+            }
         },
-    ) { padding ->
-        if (f.loading) return@Scaffold
+    ) {
+        if (f.loading) return@PsScaffold
+        val nameFocus = remember { FocusRequester() }
+        if (!vm.isEdit) LaunchedEffect(Unit) { nameFocus.requestFocus() }
         Column(
-            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(Ps.space.md),
         ) {
-            OutlinedTextField(
-                f.clientName, { v -> vm.edit { it.copy(clientName = v) } },
-                label = { Text("Client name") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            PsTextField(
+                f.clientName, { v -> vm.edit { it.copy(clientName = v) } }, gutter,
+                label = "Client name",
+                fieldModifier = Modifier.focusRequester(nameFocus),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
             )
-            OutlinedTextField(
-                f.service, { v -> vm.edit { it.copy(service = v) } },
-                label = { Text("Service (optional)") }, placeholder = { Text("House wash") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+            PsTextField(
+                f.service, { v -> vm.edit { it.copy(service = v) } }, gutter,
+                label = "Service", labelTrailing = "optional", placeholder = "House wash",
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
             )
-            OutlinedTextField(
-                f.address, { v -> vm.edit { it.copy(address = v) } },
-                label = { Text("Address (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            PsTextField(
+                f.address, { v -> vm.edit { it.copy(address = v) } }, gutter,
+                label = "Address", labelTrailing = "optional",
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
             )
-            OutlinedTextField(
-                f.phone, { v -> vm.edit { it.copy(phone = v) } },
-                label = { Text("Client phone (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            PsTextField(
+                f.phone, { v -> vm.edit { it.copy(phone = v) } }, gutter,
+                label = "Client phone", labelTrailing = "optional",
+                helper = "Lets you text the link straight to them.",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
             )
-            Text("When", style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Schedule.Day.entries.forEach { d ->
-                    FilterChip(selected = f.day == d, onClick = { vm.edit { it.copy(day = d) } }, label = { Text(d.label) })
+            Column {
+                PsSectionHeader("When", Modifier.padding(top = 8.dp))
+                PsChipRow(gutter) {
+                    Schedule.Day.entries.forEach { d ->
+                        PsChip(d.label, selected = f.day == d, onClick = { vm.edit { it.copy(day = d) } })
+                    }
                 }
-            }
-            Button(onClick = vm::save, enabled = f.canSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Text(if (vm.isEdit) "Save" else "Create job")
             }
         }
     }

@@ -255,7 +255,13 @@ fun PsSearchField(
 // ---------- Chips ----------
 
 /** How a chip behaves for TalkBack: one of a set, or an on/off of its own. */
-enum class PsChipKind { Radio, Checkbox }
+enum class PsChipKind {
+    Radio,
+    Checkbox,
+
+    /** A plain button (an insert chip): no selected state. */
+    Action,
+}
 
 /**
  * A pill chip, 36 dp tall inside a 48 dp target. Selected: ink fill. Unselected: outline. [onDark]
@@ -290,6 +296,7 @@ fun PsChip(
     val interactive = when (kind) {
         PsChipKind.Radio -> Modifier.psSelectable(selected, onClick, Role.RadioButton, enabled, shape)
         PsChipKind.Checkbox -> Modifier.psToggleable(selected, { onClick() }, Role.Checkbox, enabled, shape)
+        PsChipKind.Action -> Modifier.psPressable(onClick, enabled, Role.Button, focusShape = shape)
     }
     Box(
         modifier.heightIn(min = 48.dp).then(interactive).alpha(if (enabled) 1f else 0.4f),

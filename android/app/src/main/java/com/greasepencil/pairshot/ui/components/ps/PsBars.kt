@@ -94,6 +94,7 @@ fun PsTabHeader(
     title: String,
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
+    titleModifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val c = Ps.colors
@@ -106,7 +107,7 @@ fun PsTabHeader(
                 Text(eyebrow.uppercase(), style = Ps.type.eyebrow, color = c.inkFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
             }
-            Text(title, style = Ps.type.titleXL, color = c.ink, modifier = Modifier.semantics { heading() })
+            Text(title, style = Ps.type.titleXL, color = c.ink, modifier = titleModifier.semantics { heading() })
         }
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
     }

@@ -3,6 +3,16 @@ package com.greasepencil.pairshot.ui.components.ps
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -89,6 +99,62 @@ fun PsListBlock(modifier: Modifier = Modifier, content: PsListBlockScope.() -> U
             row()
         }
     }
+}
+
+/**
+ * [PsListBlock] for long lists inside a `LazyColumn`: each item is one row of the same block (same
+ * fill, border, corners and inset dividers), so only the rows on screen are composed.
+ */
+fun <T> LazyListScope.psListBlockItems(
+    items: List<T>,
+    key: ((T) -> Any)? = null,
+    content: @Composable (T) -> Unit,
+) {
+    val last = items.lastIndex
+    itemsIndexed(items, key = key?.let { k -> { _: Int, item: T -> k(item) } }) { i, item ->
+        PsListBlockSegment(first = i == 0, last = i == last) { content(item) }
+    }
+}
+
+/** One row's slice of a list block: rounded only where the block starts and ends. */
+@Composable
+private fun PsListBlockSegment(first: Boolean, last: Boolean, content: @Composable () -> Unit) {
+    val c = Ps.colors
+    val radius = 14.dp
+    val shape = RoundedCornerShape(
+        topStart = if (first) radius else 0.dp,
+        topEnd = if (first) radius else 0.dp,
+        bottomStart = if (last) radius else 0.dp,
+        bottomEnd = if (last) radius else 0.dp,
+    )
+    val hairline = c.hairline
+    val inset = Ps.space.gutter
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Ps.space.gutter)
+            .clip(shape)
+            .background(c.surface)
+            .drawWithContent {
+                drawContent()
+                val w = 1.dp.toPx()
+                val r = radius.toPx()
+                // The block's outline, stretched past the edges this slice doesn't own and clipped,
+                // so neighbouring slices join into one bordered block.
+                val top = if (first) w / 2 else -r * 2
+                val bottom = if (last) size.height - w / 2 else size.height + r * 2
+                clipRect {
+                    drawRoundRect(
+                        hairline,
+                        topLeft = Offset(w / 2, top),
+                        size = Size(size.width - w, bottom - top),
+                        cornerRadius = CornerRadius(r),
+                        style = Stroke(w),
+                    )
+                    if (!first) drawLine(hairline, Offset(inset.toPx(), w / 2), Offset(size.width, w / 2), w)
+                }
+            },
+    ) { content() }
 }
 
 /** The navigation chevron at the end of a row. */
