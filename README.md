@@ -8,6 +8,8 @@ By Grease Pencil Studio. The full plan is in [PLAN.md](PLAN.md).
 ## Status
 
 **Phase 1 (offline core) — in progress.** Works today, fully offline:
+- Three tabs: Jobs, Brand, Settings. Light, dark or follow the phone (Settings → Appearance)
+- First run in two steps: business name and trade, then the client page's colour and style
 - Jobs (create, edit, delete, search)
 - Before camera: just shoot; labels ("Driveway") are optional and can be added or changed later
 - After camera: walks every before that still needs its after, in shooting order. The before shows
@@ -15,8 +17,11 @@ By Grease Pencil Studio. The full plan is in [PLAN.md](PLAN.md).
 - Volume keys work as the shutter
 - Pairs: slider compare, label, make cover, hide from client, swap, retake, delete
 - Import from the gallery: befores in bulk, or a single after for a pair (system Photo Picker)
-- Share one pair as a single side-by-side or stacked image
+- Share one pair as a single image: side by side, before on top, split, square post or story,
+  framed in the business's page style and colour
 - Client page preview: the exact page the client will get, built on the phone
+- Four client page styles (Classic, Showroom, Bright, Report) and a business colour, set in Brand;
+  each job can pick its own style
 
 **Phase 2/3 (links and CRM): built, running on a local server for now.**
 - Send link: photos are prepared on the phone (upright, resized, location and EXIF removed),

@@ -15,9 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.greasepencil.pairshot.BuildConfig
@@ -32,7 +30,6 @@ import com.greasepencil.pairshot.ui.components.ps.PsScaffold
 import com.greasepencil.pairshot.ui.components.ps.PsSectionHeader
 import com.greasepencil.pairshot.ui.components.ps.PsSegmented
 import com.greasepencil.pairshot.ui.components.ps.PsTabHeader
-import com.greasepencil.pairshot.ui.theme.Mono
 import com.greasepencil.pairshot.ui.theme.Ps
 import com.greasepencil.pairshot.ui.theme.studioFonts
 
@@ -113,14 +110,15 @@ fun SettingsScreen(nav: SettingsNav, vm: SettingsViewModel = hiltViewModel()) {
             Spacer(Modifier.height(48.dp))
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 StudioLockup(ink = Ps.colors.ink, fonts = studioFonts)
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(Ps.space.md))
                 PromiseLine(
                     listOf("Works offline", "No ads", "No trackers"),
                     version = BuildConfig.VERSION_NAME,
                     appName = "Pairshot",
                     color = Ps.colors.inkSoft,
                     showLoop = false,
-                    style = TextStyle(fontFamily = Mono, fontSize = 10.sp, letterSpacing = 0.8.sp),
+                    // Uppercase mono, so the 11 sp eyebrow size is the smallest allowed.
+                    style = Ps.type.eyebrow,
                 )
             }
         }

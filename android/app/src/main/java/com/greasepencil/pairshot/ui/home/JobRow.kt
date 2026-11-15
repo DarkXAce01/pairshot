@@ -62,7 +62,7 @@ fun JobRow(summary: JobSummary, onClick: () -> Unit, modifier: Modifier = Modifi
                 role = Role.Button
                 onClick { onClick(); true }
             }
-            .padding(horizontal = Ps.space.gutter, vertical = 10.dp),
+            .padding(horizontal = Ps.space.gutter, vertical = Ps.space.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PsPhotoThumb(summary.coverFile, summary.coverRotation ?: 0, 56.dp)

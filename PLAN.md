@@ -38,8 +38,9 @@ We win on price, focus, alignment and the client page. We don't try to match the
 
 ## 3. How the app works
 
-**First open (no account, ~30 s):** business name, trade (sets area chips, e.g. Driveway · Patio ·
-Siding · Roof), optional logo → Home.
+**First open (no account, ~30 s, two steps):** business name and trade (sets label chips, e.g.
+Driveway · Patio · Siding · Roof), then the client page's colour and style (preset from the trade;
+Skip keeps the preset) → Jobs.
 
 1. **Job arrives** from the CRM, or **+** with client, address, service.
 2. **On site → Before.** Tap the job → camera. Pick an area chip, shoot. Each shot is a before waiting
@@ -74,8 +75,9 @@ posts and Google Business.
 - Client page: branded, slider + side-by-side, fullscreen swipe, review/book/call, OG preview image,
   EXIF/GPS stripped, noindex, revocable.
 - Pro: CRM inbound webhook, outbound webhooks (signed), API key + small REST API, delivery log.
-- Settings: business & branding, area presets, ghost defaults, Wi-Fi only, local photo cleanup,
-  integrations, delete cloud data, studio lockup + promise line.
+- Settings (a tab beside Jobs and Brand; business details, message and look live in Brand): account
+  and plan, connections, camera (ghost defaults), uploads & storage (Wi-Fi only, local photo
+  cleanup), appearance, help & about, delete cloud data, studio lockup + promise line.
 
 ### v1.1
 Teams (invite code), FCM push for CRM jobs, client "download all", official Zapier app.

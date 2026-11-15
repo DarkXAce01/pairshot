@@ -106,7 +106,7 @@ fun CrmUpdatesScreen(vm: CloudViewModel, onBack: () -> Unit, onDeliveries: () ->
 private fun HookRow(h: WebhookDto, busy: Boolean, onTest: () -> Unit, onRemove: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().heightIn(min = Ps.space.row2).padding(start = Ps.space.gutter, end = 8.dp, top = 10.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().heightIn(min = Ps.space.row2).padding(start = Ps.space.gutter, end = 8.dp, top = Ps.space.sm, bottom = Ps.space.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(2.dp)) {

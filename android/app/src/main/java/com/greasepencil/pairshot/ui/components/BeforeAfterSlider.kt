@@ -138,7 +138,7 @@ fun BeforeAfterSlider(
                     drawPath(right, chevron, style = stroke)
                 },
         )
-        PsTag("Before", Modifier.align(Alignment.TopStart).padding(10.dp))
-        PsTag("After", Modifier.align(Alignment.TopEnd).padding(10.dp))
+        PsTag("Before", Modifier.align(Alignment.TopStart).padding(Ps.space.xs))
+        PsTag("After", Modifier.align(Alignment.TopEnd).padding(Ps.space.xs))
     }
 }

@@ -22,7 +22,6 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

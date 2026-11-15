@@ -127,7 +127,7 @@ private fun PlanRow(feature: String, free: String, pro: String, head: Boolean = 
     val m = Modifier
         .fillMaxWidth()
         .heightIn(min = if (head) 40.dp else Ps.space.row)
-        .padding(horizontal = Ps.space.gutter, vertical = 10.dp)
+        .padding(horizontal = Ps.space.gutter, vertical = Ps.space.sm)
         .then(
             if (head) {
                 Modifier.clearAndSetSemantics {}

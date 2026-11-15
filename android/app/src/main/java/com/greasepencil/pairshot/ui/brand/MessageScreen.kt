@@ -82,8 +82,8 @@ private fun MessageEditor(s: AppSettings, onSave: (String) -> Unit) {
             { value = it },
             Modifier.padding(horizontal = Ps.space.gutter),
             label = "Message",
-            helper = "The link goes where {link} is. Leave it in.",
-            error = if (noLink) "Without {link} your client gets no link." else null,
+            // Not an error: the message filler adds the link at the end when {link} is missing.
+            helper = if (noLink) "No {link}? We'll add the link at the end." else "The link goes where {link} is.",
             singleLine = false,
             minLines = 4,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),

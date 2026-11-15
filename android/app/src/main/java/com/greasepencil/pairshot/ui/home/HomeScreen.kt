@@ -1,7 +1,6 @@
 package com.greasepencil.pairshot.ui.home
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -100,8 +98,6 @@ fun HomeScreen(
     onOpenJob: (String) -> Unit,
     onNewJob: () -> Unit,
     onFreeUpSpace: () -> Unit,
-    /** Debug builds only, until the Developer page exists: long-press "Jobs" for the component gallery. */
-    onComponentGallery: (() -> Unit)? = null,
     vm: HomeViewModel = hiltViewModel(),
     // Only for the business name over the title; HomeViewModel stays as it is.
     brand: BrandViewModel = hiltViewModel(),
@@ -125,13 +121,9 @@ fun HomeScreen(
                 if (searching) {
                     SearchHeader(query, ::setQuery, ::stopSearching)
                 } else {
-                    val galleryEntry = onComponentGallery?.let { open ->
-                        Modifier.pointerInput(open) { detectTapGestures(onLongPress = { open() }) }
-                    } ?: Modifier
                     PsTabHeader(
                         "Jobs",
                         eyebrow = businessName.ifBlank { null },
-                        titleModifier = galleryEntry,
                         actions = {
                             if (state.totalJobs > 3) PsIconButton(Icons.Outlined.Search, "Search jobs", { searching = true })
                         },

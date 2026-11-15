@@ -110,7 +110,7 @@ fun StorageScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
 private fun LowSpaceRow(value: String) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = Ps.space.row).semantics(mergeDescendants = true) {}
-            .padding(horizontal = Ps.space.gutter, vertical = 10.dp),
+            .padding(horizontal = Ps.space.gutter, vertical = Ps.space.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("Free space", Modifier.weight(1f), style = Ps.type.rowTitle, color = Ps.colors.ink)

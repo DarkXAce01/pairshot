@@ -135,7 +135,7 @@ fun LookSection(
     Text("Page style", gutter.padding(top = 20.dp).semantics { heading() }, style = Ps.type.rowTitle, color = Ps.colors.ink)
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Ps.space.gutter).padding(top = 8.dp).selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(Ps.space.sm),
     ) {
         ClientTemplate.entries.forEach { t ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -146,7 +146,7 @@ fun LookSection(
                 ) {
                     PsTemplateThumb(t, accent, businessName, pair = pair)
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(Ps.space.xs))
                 Text(
                     t.label,
                     Modifier.width(108.dp).clearAndSetSemantics {},

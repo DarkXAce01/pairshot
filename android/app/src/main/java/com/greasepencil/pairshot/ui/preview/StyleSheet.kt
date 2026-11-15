@@ -49,7 +49,7 @@ fun StyleSheet(state: PreviewState, onPick: (ClientTemplate?) -> Unit, onDismiss
                     ) {
                         PsTemplateThumb(shownAs, state.accent, state.businessName, pair = state.cover)
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(Ps.space.xs))
                     Text(
                         name,
                         style = Ps.type.caption,

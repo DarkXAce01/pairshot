@@ -2,6 +2,10 @@ package com.greasepencil.pairshot.ui.nav
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,6 +35,7 @@ import com.greasepencil.pairshot.ui.brand.BrandScreen
 import com.greasepencil.pairshot.ui.brand.MessageScreen
 import com.greasepencil.pairshot.ui.camera.CameraScreen
 import com.greasepencil.pairshot.ui.components.ps.PsTabBar
+import com.greasepencil.pairshot.ui.components.ps.rememberReducedMotion
 import com.greasepencil.pairshot.ui.theme.Ps
 import com.greasepencil.pairshot.ui.dev.ComponentGalleryScreen
 import com.greasepencil.pairshot.ui.home.HomeScreen
@@ -65,9 +70,14 @@ fun AppNav(onboarded: Boolean, openJob: String? = null, onOpenedJob: () -> Unit 
                 .fillMaxWidth()
                 .then(if (tab != null) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier),
         ) {
-            AppGraph(nav, start, tabFade)
+            AppGraph(nav, start)
         }
-        AnimatedVisibility(tab != null, enter = fadeIn(tween(tabFade)), exit = fadeOut(tween(tabFade))) {
+        val reduced = rememberReducedMotion()
+        AnimatedVisibility(
+            tab != null,
+            enter = if (reduced) EnterTransition.None else fadeIn(tween(tabFade)),
+            exit = if (reduced) ExitTransition.None else fadeOut(tween(tabFade)),
+        ) {
             PsTabBar(AppTab.psTabs, current = lastTab.ordinal, onSelect = { nav.selectTab(AppTab.entries[it]) })
         }
     }
@@ -82,14 +92,44 @@ fun AppNav(onboarded: Boolean, openJob: String? = null, onOpenedJob: () -> Unit 
 
 /** Every screen. Switching between tabs is a short cross-fade with no slide. */
 @Composable
-private fun AppGraph(nav: NavHostController, start: Any, tabFade: Int) {
+private fun AppGraph(nav: NavHostController, start: Any) {
     fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs() =
         AppTab.of(initialState.destination) != null && AppTab.of(targetState.destination) != null
+    val m = Ps.motion
+    // Animator scale 0: no transitions at all, end states only (spec 4.6).
+    val reduced = rememberReducedMotion()
+    fun slide(towardsEnd: Boolean): (Int) -> Int = { w -> ((if (towardsEnd) 1 else -1) * w * m.screenSlideFraction).toInt() }
     NavHost(
         nav,
         startDestination = start,
-        enterTransition = { if (betweenTabs()) fadeIn(tween(tabFade)) else fadeIn(tween(700)) },
-        exitTransition = { if (betweenTabs()) fadeOut(tween(tabFade)) else fadeOut(tween(700)) },
+        enterTransition = {
+            when {
+                reduced -> EnterTransition.None
+                betweenTabs() -> fadeIn(tween(m.tab))
+                else -> slideInHorizontally(tween(m.screenSlide, easing = m.easing), slide(true)) + fadeIn(tween(m.screenFadeIn))
+            }
+        },
+        exitTransition = {
+            when {
+                reduced -> ExitTransition.None
+                betweenTabs() -> fadeOut(tween(m.tab))
+                else -> fadeOut(tween(m.screenFadeOut))
+            }
+        },
+        popEnterTransition = {
+            when {
+                reduced -> EnterTransition.None
+                betweenTabs() -> fadeIn(tween(m.tab))
+                else -> slideInHorizontally(tween(m.screenSlide, easing = m.easing), slide(false)) + fadeIn(tween(m.screenFadeIn))
+            }
+        },
+        popExitTransition = {
+            when {
+                reduced -> ExitTransition.None
+                betweenTabs() -> fadeOut(tween(m.tab))
+                else -> slideOutHorizontally(tween(m.screenSlide, easing = m.easing), slide(true)) + fadeOut(tween(m.screenFadeOut))
+            }
+        },
     ) {
         composable<OnboardingRoute> {
             OnboardingScreen(onDone = {
@@ -101,11 +141,6 @@ private fun AppGraph(nav: NavHostController, start: Any, tabFade: Int) {
                 onOpenJob = { nav.navigate(JobRoute(it)) },
                 onNewJob = { nav.navigate(NewJobRoute()) },
                 onFreeUpSpace = { nav.navigate(StorageRoute) },
-                onComponentGallery = if (BuildConfig.DEBUG) {
-                    { nav.navigate(ComponentGalleryRoute) }
-                } else {
-                    null
-                },
             )
         }
         composable<NewJobRoute> {

@@ -77,7 +77,7 @@ fun SentMoment(moment: Moment, onDone: () -> Unit) {
                 if (moment.coverFile != null) PhotoImage(moment.coverFile, moment.coverRotation, photo)
                 else Box(photo.background(c.sunken))
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(Ps.space.xl))
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.graphicsLayer { alpha = word.value; translationY = (1f - word.value) * 24f },
