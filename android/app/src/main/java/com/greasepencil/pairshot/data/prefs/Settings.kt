@@ -20,6 +20,23 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("s
 /** How the before is shown while shooting the after. */
 enum class GhostMode(val label: String) { OUTLINE("Outline"), PHOTO("Photo"), OFF("Off") }
 
+/** Appearance: follow the phone, or always light, or always dark. */
+enum class ThemeMode(val label: String) {
+    SYSTEM("System"), LIGHT("Light"), DARK("Dark");
+
+    /** Whether the app should be dark, given whether the phone is. */
+    fun isDark(systemDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
+
+    companion object {
+        /** A stored value back to a mode; anything unknown means [SYSTEM]. */
+        fun fromStored(value: String?): ThemeMode = entries.firstOrNull { it.name == value } ?: SYSTEM
+    }
+}
+
 data class AppSettings(
     val onboarded: Boolean = false,
     val businessName: String = "",
@@ -34,6 +51,7 @@ data class AppSettings(
     val wifiOnly: Boolean = false,
     /** Not stored here: filled in from the account's plan (CloudSession) where it matters. */
     val isPro: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
     companion object {
         const val DEFAULT_TEMPLATE = "Hi {first_name}, here's your {service} before & after: {link}"
@@ -58,6 +76,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val review = stringPreferencesKey("review_url")
         val booking = stringPreferencesKey("booking_url")
         val wifiOnly = booleanPreferencesKey("wifi_only")
+        val themeMode = stringPreferencesKey("theme_mode")
     }
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -72,6 +91,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             reviewUrl = p[Keys.review] ?: "",
             bookingUrl = p[Keys.booking] ?: "",
             wifiOnly = p[Keys.wifiOnly] ?: false,
+            themeMode = ThemeMode.fromStored(p[Keys.themeMode]),
         )
     }
 
@@ -92,4 +112,5 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     suspend fun setReviewUrl(v: String) = context.dataStore.edit { it[Keys.review] = v.trim() }
     suspend fun setBookingUrl(v: String) = context.dataStore.edit { it[Keys.booking] = v.trim() }
     suspend fun setWifiOnly(v: Boolean) = context.dataStore.edit { it[Keys.wifiOnly] = v }
+    suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit { it[Keys.themeMode] = mode.name }
 }

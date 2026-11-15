@@ -11,3 +11,6 @@ import kotlinx.serialization.Serializable
 @Serializable data object SettingsRoute
 @Serializable data class PreviewRoute(val jobId: String)
 @Serializable data object CloudRoute
+
+/** Debug builds only: every Ps component in every state. */
+@Serializable data object ComponentGalleryRoute

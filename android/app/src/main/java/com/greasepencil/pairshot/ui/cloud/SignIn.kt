@@ -18,8 +18,6 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,26 +34,23 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.greasepencil.pairshot.ui.components.ps.PsButton
+import com.greasepencil.pairshot.ui.components.ps.PsButtonVariant
 import com.greasepencil.pairshot.data.cloud.SignInCancelled
 
 /** The one sign-in button, used on the job screen's sheet and in Account & CRM. */
 @Composable
 fun GoogleSignInButton(onClick: () -> Unit, busy: Boolean, modifier: Modifier = Modifier) {
-    Button(
+    PsButton(
+        text = if (busy) "Signing in…" else "Continue with Google",
         onClick = onClick,
-        enabled = !busy,
-        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
-    ) {
-        if (busy) {
-            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-            Spacer(Modifier.width(12.dp))
-            Text("Signing in…")
-        } else {
-            Icon(Icons.Outlined.AccountCircle, contentDescription = null)
-            Spacer(Modifier.width(12.dp))
-            Text("Continue with Google")
-        }
-    }
+        modifier = modifier,
+        variant = PsButtonVariant.Secondary,
+        icon = Icons.Outlined.AccountCircle,
+        busy = busy,
+        fullWidth = true,
+        height = 56.dp,
+    )
 }
 
 /** A line with an icon, for "what this means" lists. The icon is decoration; the text says it all. */

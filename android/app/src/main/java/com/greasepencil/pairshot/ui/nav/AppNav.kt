@@ -7,7 +7,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.greasepencil.pairshot.BuildConfig
 import com.greasepencil.pairshot.ui.camera.CameraScreen
+import com.greasepencil.pairshot.ui.dev.ComponentGalleryScreen
 import com.greasepencil.pairshot.ui.home.HomeScreen
 import com.greasepencil.pairshot.ui.job.JobScreen
 import com.greasepencil.pairshot.ui.job.NewJobScreen
@@ -33,6 +35,11 @@ fun AppNav(onboarded: Boolean, openJob: String? = null, onOpenedJob: () -> Unit 
                 onOpenJob = { nav.navigate(JobRoute(it)) },
                 onNewJob = { nav.navigate(NewJobRoute()) },
                 onSettings = { nav.navigate(SettingsRoute) },
+                onComponentGallery = if (BuildConfig.DEBUG) {
+                    { nav.navigate(ComponentGalleryRoute) }
+                } else {
+                    null
+                },
             )
         }
         composable<NewJobRoute> {
@@ -65,6 +72,9 @@ fun AppNav(onboarded: Boolean, openJob: String? = null, onOpenedJob: () -> Unit 
             SettingsScreen(onBack = { nav.popBackStack() }, onCloud = { nav.navigate(CloudRoute) })
         }
         composable<CloudRoute> { CloudScreen(onBack = { nav.popBackStack() }) }
+        if (BuildConfig.DEBUG) {
+            composable<ComponentGalleryRoute> { ComponentGalleryScreen(onBack = { nav.popBackStack() }) }
+        }
     }
     // After the NavHost, so the graph exists before we navigate.
     LaunchedEffect(openJob) {

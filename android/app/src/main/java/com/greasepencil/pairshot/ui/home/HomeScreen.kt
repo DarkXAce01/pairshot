@@ -2,6 +2,7 @@ package com.greasepencil.pairshot.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -97,6 +99,8 @@ fun HomeScreen(
     onOpenJob: (String) -> Unit,
     onNewJob: () -> Unit,
     onSettings: () -> Unit,
+    /** Debug builds only, until the Developer page exists: long-press "Jobs" for the component gallery. */
+    onComponentGallery: (() -> Unit)? = null,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -105,7 +109,12 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Jobs", style = MaterialTheme.typography.headlineSmall) },
+                title = {
+                    val galleryEntry = onComponentGallery?.let { open ->
+                        Modifier.pointerInput(open) { detectTapGestures(onLongPress = { open() }) }
+                    } ?: Modifier
+                    Text("Jobs", style = MaterialTheme.typography.headlineSmall, modifier = galleryEntry)
+                },
                 actions = {
                     IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
                 },
