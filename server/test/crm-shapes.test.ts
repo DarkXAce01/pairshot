@@ -46,6 +46,7 @@ describe("real-world CRM shapes", () => {
     });
     expect(j).toMatchObject({ externalId: "4kq7v0abc_20261122T150000Z", address: "301 Hill Rd, Denver, CO", cancelled: false });
     expect(j.service).toBe("Window cleaning - Pat Kim");
+    expect(j.clientName).toBe("Window cleaning - Pat Kim");
     expect(j.scheduledAt).toBe(Date.parse("2026-11-22T08:00:00-07:00"));
   });
 

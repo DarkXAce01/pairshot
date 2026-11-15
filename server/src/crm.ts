@@ -100,6 +100,10 @@ export function normalise(input: Record<string, unknown>): CrmJob {
   let address = text(pick("address"), 200);
   const city = text(find(["city", "address_city", "town", "locality"]), 80);
   if (address && city && !address.toLowerCase().includes(city.toLowerCase())) address = `${address}, ${city}`;
+  const service = text(pick("service"), 120);
+  // Calendars and some booking tools have no client field, only a title ("Window cleaning - Pat Kim"):
+  // the job is still worth having, named by its title or, failing that, its address.
+  clientName ??= service ?? address;
   const flag = f.get("cancelled") ?? f.get("canceled") ?? f.get("deleted");
   const statusish = [...f.entries()].filter(([k]) => /(^|_)(status|state|event|event_type)$/.test(k) && typeof f.get(k) === "string");
   const offByStatus = statusish.some(([, v]) => CANCELLED.test(String(v)));
@@ -109,7 +113,7 @@ export function normalise(input: Record<string, unknown>): CrmJob {
     clientPhone: text(pick("clientPhone"), 40),
     clientEmail: text(pick("clientEmail"), 120),
     address,
-    service: text(pick("service"), 120),
+    service,
     scheduledAt: parseTime(pick("scheduledAt")),
     notes: text(pick("notes"), 1000),
     cancelled: flag === true || flag === "true" || flag === 1 || offByStatus,
@@ -132,7 +136,7 @@ export async function saveJob(env: Env, account: Account, input: Record<string, 
   if (limitsFor(account.plan).crmJobsPerDay === 0) fail(402, "pro_only", "Connecting your CRM is part of Pairshot Pro.");
   const job = normalise(input);
   if (!job.externalId) fail(422, "external_id_needed", "Include the CRM's job id (external_id) so updates don't make duplicates.");
-  if (!job.clientName && !job.cancelled) fail(422, "client_name_needed", "Include the client's name (client_name).");
+  if (!job.clientName && !job.cancelled) fail(422, "client_name_needed", "Include the client's name (client_name), or at least a job title or address.");
   if ((await bump(env, account.id, "crm", dayKey(now()))) > limitsFor(account.plan).crmJobsPerDay) {
     fail(429, "daily_limit", "That's the most jobs the CRM can send in one day.");
   }
