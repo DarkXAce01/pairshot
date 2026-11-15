@@ -18,16 +18,24 @@ export interface CrmJob {
 }
 
 const ALIASES: Record<Exclude<keyof CrmJob, "cancelled">, string[]> = {
-  externalId: ["external_id", "externalid", "job_id", "jobid", "job_number", "jobnumber", "id", "number", "visit_id", "appointment_id"],
-  clientName: ["client_name", "clientname", "customer_name", "customername", "full_name", "fullname", "contact_name", "name", "client", "customer"],
-  clientPhone: ["client_phone", "clientphone", "customer_phone", "phone", "phone_number", "mobile", "cell"],
+  externalId: ["external_id", "externalid", "job_id", "jobid", "job_number", "jobnumber", "id", "number", "visit_id", "appointment_id", "booking_id", "event_id", "uuid", "uri"],
+  clientName: ["client_name", "clientname", "customer_name", "customername", "full_name", "fullname", "contact_name", "display_name", "name", "client", "customer"],
+  clientPhone: ["client_phone", "clientphone", "customer_phone", "phone", "phone_number", "mobile", "mobile_number", "mobile_phone", "cell", "cell_phone", "telephone"],
   clientEmail: ["client_email", "clientemail", "customer_email", "email", "email_address"],
-  address: ["address", "service_address", "property_address", "job_address", "location", "street", "address1"],
-  service: ["service", "service_name", "title", "job_title", "job_type", "service_type", "description", "summary"],
-  scheduledAt: ["scheduled_at", "scheduledat", "scheduled_start", "start_at", "start", "start_time", "starttime", "date", "appointment", "visit_date"],
-  notes: ["notes", "note", "instructions", "comments"],
+  address: ["address", "service_address", "property_address", "job_address", "location", "street", "street_address", "address1", "address_line_1", "address_line1"],
+  service: ["service", "service_name", "title", "job_title", "job_type", "service_type", "scheduled_event_name", "event_type_name", "summary", "description"],
+  scheduledAt: ["scheduled_at", "scheduledat", "scheduled_start", "start_at", "start_date_time", "start_datetime", "start", "start_time", "starttime", "start_date", "date", "appointment", "visit_date"],
+  notes: ["notes", "note", "instructions", "comments", "customer_note"],
 };
 
+/**
+ * Aliases that are also safe to find at the end of a longer key ("client_phone_number" →
+ * "phone_number", "property_street" → "street"). Short, vague ones like "id", "name" or "date" aren't.
+ */
+const VAGUE = new Set(["id", "number", "name", "client", "customer", "title", "date", "start", "appointment", "description", "uri", "uuid", "location"]);
+
+/** Statuses and events that mean the job is off. */
+const CANCELLED = /cancel|deleted|archived|declined|no[_ ]?show|rejected/i;
 /** Snake-cases a key: "jobType" / "Service Address" / "client.first-name" → "job_type" / "service_address" / "client_first_name". */
 const keyOf = (k: string) => k.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[\s.-]+/g, "_");
 
@@ -70,21 +78,31 @@ export function parseTime(v: unknown): number | null {
 /** Turns whatever the CRM / Zapier / Make sent into a job. */
 export function normalise(input: Record<string, unknown>): CrmJob {
   const f = flatten(input);
-  const pick = (field: keyof typeof ALIASES) => {
-    for (const a of ALIASES[field]) if (f.has(a) && f.get(a) !== null && f.get(a) !== "") return f.get(a);
+  const present = (v: unknown) => v !== null && v !== undefined && v !== "";
+  /** The first alias found as a whole key, then (for specific aliases) at the end of a key, shortest key first. */
+  const find = (aliases: string[]): unknown => {
+    const keys = [...f.keys()].sort((a, b) => a.length - b.length);
+    for (const a of aliases) {
+      if (present(f.get(a))) return f.get(a);
+      if (VAGUE.has(a)) continue;
+      const k = keys.find((k) => k.endsWith(`_${a}`) && present(f.get(k)));
+      if (k) return f.get(k);
+    }
     return undefined;
   };
+  const pick = (field: keyof typeof ALIASES) => find(ALIASES[field]);
   let clientName = text(pick("clientName"), 120);
   if (!clientName) {
-    const first = text(f.get("first_name") ?? f.get("firstname") ?? f.get("client_first_name") ?? f.get("customer_first_name"), 60);
-    const last = text(f.get("last_name") ?? f.get("lastname") ?? f.get("client_last_name") ?? f.get("customer_last_name"), 60);
+    const first = text(find(["first_name", "firstname", "given_name"]), 60);
+    const last = text(find(["last_name", "lastname", "family_name", "surname"]), 60);
     clientName = [first, last].filter(Boolean).join(" ") || null;
   }
   let address = text(pick("address"), 200);
-  const city = text(f.get("city") ?? f.get("address_city"), 80);
+  const city = text(find(["city", "address_city", "town", "locality"]), 80);
   if (address && city && !address.toLowerCase().includes(city.toLowerCase())) address = `${address}, ${city}`;
-  const status = String(f.get("status") ?? "").toLowerCase();
   const flag = f.get("cancelled") ?? f.get("canceled") ?? f.get("deleted");
+  const statusish = [...f.entries()].filter(([k]) => /(^|_)(status|state|event|event_type)$/.test(k) && typeof f.get(k) === "string");
+  const offByStatus = statusish.some(([, v]) => CANCELLED.test(String(v)));
   return {
     externalId: text(pick("externalId"), 120) ?? "",
     clientName,
@@ -94,7 +112,7 @@ export function normalise(input: Record<string, unknown>): CrmJob {
     service: text(pick("service"), 120),
     scheduledAt: parseTime(pick("scheduledAt")),
     notes: text(pick("notes"), 1000),
-    cancelled: flag === true || flag === "true" || flag === 1 || ["cancelled", "canceled", "deleted", "archived"].includes(status),
+    cancelled: flag === true || flag === "true" || flag === 1 || offByStatus,
   };
 }
 

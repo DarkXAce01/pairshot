@@ -27,7 +27,12 @@ already use, so there is usually nothing to map:
 | service | `service`, `title`, `job_title`, `job_type`, `description`, `summary` |
 | when | `scheduled_at`, `start_at`, `start`, `date`, `appointment` (ISO text, seconds or milliseconds) |
 | notes | `notes`, `instructions`, `comments` |
-| cancelled | `status: "cancelled"`, `cancelled: true`, `deleted: true`, `archived` |
+| cancelled | any `status` / `state` / `event` containing cancel, deleted, archived, declined or no-show; `cancelled: true` |
+
+Nested objects are read too (`job.customer.first_name`), and a longer key that ends in one of these names
+works (`client_phone_number`, `property_street`, `visit_start_at`). Tested against payload shapes from
+Jobber (Zapier), Housecall Pro, Google Calendar, Calendly and Square (`server/test/crm-shapes.test.ts`).
+A plain setup guide for users is served at `/help/crm` and linked from the app.
 
 Nested objects work too. For example, `{"client": {"first_name": "Sam"}}` is read as Sam.
 Sending the same job id again updates that job. A blank field never erases what the phone has.

@@ -26,6 +26,7 @@ app.notFound((c) => c.json({ error: "not_found", message: "Not here." }, 404));
 app.get("/", pub.home);
 app.get("/privacy", pub.privacy);
 app.get("/delete-account", pub.deleteInfo);
+app.get("/help/crm", pub.crmHelp);
 app.get("/g/:slug", pub.galleryPage);
 app.get("/g/:slug/photos.zip", pub.galleryZip);
 app.get("/i/:account/:hash", pub.photo);

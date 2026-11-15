@@ -33,13 +33,16 @@ async function headers(extra: Record<string, string> = {}): Promise<Record<strin
   };
 }
 
-function simplePage(title: string, body: string): string {
+function simplePage(title: string, body: string, wide = false): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>${escapeHtml(title)}</title>
 <style>body{margin:0;background:#F2EFE9;color:#1C1B19;font:17px/1.5 system-ui,sans-serif}main{max-width:560px;margin:0 auto;padding:72px 20px}
-h1{font:400 34px/1.1 Georgia,serif;margin:0 0 12px}p{color:#55524C}a{color:#D4432A}
-@media(prefers-color-scheme:dark){body{background:#161514;color:#EDE9E2}p{color:#A39E95}a{color:#E5553A}}</style></head>
-<body><main><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
+h1{font:400 34px/1.1 Georgia,serif;margin:0 0 12px}p,li{color:#55524C}a{color:#D4432A}
+main.wide{max-width:720px}h2{font:400 26px/1.2 Georgia,serif;margin:40px 0 8px}h3{margin:24px 0 4px;font-size:17px}
+code{font:14px ui-monospace,Menlo,monospace;background:#E6E1D8;padding:1px 5px;border-radius:4px}
+ol,ul{padding-left:22px}li{margin:4px 0}table{border-collapse:collapse;width:100%;font-size:15px}td,th{border-bottom:1px solid #DDD7CC;padding:6px 4px;text-align:left;vertical-align:top}
+@media(prefers-color-scheme:dark){body{background:#161514;color:#EDE9E2}p,li{color:#A39E95}a{color:#E5553A}code{background:#2A2826}td,th{border-color:#34322E}}</style></head>
+<body><main${wide ? ' class="wide"' : ""}><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
 }
 
 /** Puts the manifest into the shared template (same as the app's preview). */
@@ -169,6 +172,71 @@ so your own CRM webhooks can use them. Clients see only the gallery page.</p>
 <p>Free galleries are deleted 14 days after sending. Closing a gallery deletes its photos straight away.
 Pairshot shows no ads and has no third-party trackers.</p>
 <p>To delete everything we store, see <a href="/delete-account">delete your data</a>.</p>`));
+}
+
+/** GET /help/crm: setup steps a business owner can follow from their phone. */
+export function crmHelp(c: Context<AppEnv>) {
+  return c.html(simplePage("Connect your CRM", `
+<p>Pairshot Pro talks to your CRM both ways. You don't need any code: a free <a href="https://zapier.com">Zapier</a>
+or <a href="https://www.make.com">Make</a> account does the joining. Everything you need to copy is in the app under
+<b>Settings → Account &amp; CRM</b>.</p>
+
+<h2>1. New jobs appear in Pairshot</h2>
+<p>When a job is booked in your CRM, it shows up in your Pairshot job list with the client's name, address and time.</p>
+<h3>With Zapier</h3>
+<ol>
+<li>In Pairshot, tap <b>Copy address</b> under <i>Jobs from your CRM</i>.</li>
+<li>In Zapier, make a Zap. <b>Trigger:</b> your CRM's "new job", "new visit" or "new appointment" (Jobber, Housecall Pro,
+Square, Google Calendar, Calendly…).</li>
+<li><b>Action:</b> <i>Webhooks by Zapier → POST</i>. URL: paste the address. Payload type: <code>json</code>.</li>
+<li>Under <i>Data</i>, add the fields you have. The names below work; others usually do too.</li>
+<li>Press <b>Test</b>. Then open Pairshot and tap <b>Sync now</b>: the test job is in your list.</li>
+</ol>
+<table>
+<tr><th>Name it</th><th>Put in</th></tr>
+<tr><td><code>id</code></td><td>The job or visit ID (needed, so updates don't make a second job)</td></tr>
+<tr><td><code>client_name</code></td><td>Client's name (needed)</td></tr>
+<tr><td><code>phone</code>, <code>email</code></td><td>Client's phone and email (for the "Text" button)</td></tr>
+<tr><td><code>address</code></td><td>Job address</td></tr>
+<tr><td><code>service</code></td><td>What the job is, e.g. "House wash"</td></tr>
+<tr><td><code>start_at</code></td><td>When it's booked</td></tr>
+<tr><td><code>notes</code></td><td>Gate codes, instructions</td></tr>
+<tr><td><code>status</code></td><td>Send "cancelled" to take a job off your list</td></tr>
+</table>
+<h3>With Make</h3>
+<p>Your CRM's "watch new jobs" module → <i>HTTP → Make a request</i>: method POST, URL the address, body type JSON,
+with the same fields.</p>
+<h3>Straight from your CRM</h3>
+<p>If your CRM can send webhooks itself (Housecall Pro, Square, Calendly and others), paste the address there.
+Pairshot reads their usual fields without any mapping.</p>
+
+<h2>2. Your CRM hears when you send a link</h2>
+<p>Pairshot can tell your other tools when a before &amp; after link is sent, updated, or opened by the client for the
+first time. Use it to add the link to the job, email it with the invoice, or ask for a review once they've seen it.</p>
+<ol>
+<li>In Zapier, make a Zap with <b>Trigger:</b> <i>Webhooks by Zapier → Catch Hook</i>. Copy the address it gives you.</li>
+<li>In Pairshot, under <i>Webhooks</i>, paste it and tap <b>Add webhook</b>, then <b>Send a test</b>.</li>
+<li>Back in Zapier, <b>Test trigger</b>: you'll see the test. Add a <i>Filter</i> on <code>event</code>:
+<code>gallery.published</code> (sent), <code>gallery.updated</code> or <code>gallery.viewed</code> (the client opened it).</li>
+<li>Add your action, e.g. <i>Jobber → Create note</i> on job <code>data job externalId</code> with
+"Before &amp; after: <code>data gallery url</code>".</li>
+</ol>
+<p>Each message carries the link, the job (with your CRM's job ID) and the client's details.</p>
+
+<h2>Ideas that work well</h2>
+<ul>
+<li><b>Review request:</b> on <code>gallery.viewed</code>, wait 2 hours, then text the client your Google review link.</li>
+<li><b>Invoice with photos:</b> on <code>gallery.published</code>, add the link to the job so it goes out with the invoice.</li>
+<li><b>Team chat:</b> post every sent link to Slack or WhatsApp so the office sees the work.</li>
+</ul>
+
+<h2>If something doesn't arrive</h2>
+<ul>
+<li>Jobs: check Zapier's Zap history. Pairshot answers with what's missing, e.g. "Include the client's name".</li>
+<li>Webhooks: the app shows the last deliveries. Pairshot retries for a day if your Zap was off.</li>
+<li>Someone else got your address? Tap <b>New address…</b> and update your Zap.</li>
+</ul>
+<p>Up to 200 jobs a day come in, and up to 5 webhooks. Both need Pro.</p>`, true));
 }
 
 export function deleteInfo(c: Context<AppEnv>) {

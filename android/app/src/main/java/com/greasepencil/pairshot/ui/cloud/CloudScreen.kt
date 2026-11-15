@@ -594,6 +594,17 @@ private fun CrmJobsCard(s: CloudState, busy: Boolean, onCopy: (String) -> Unit, 
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (s.serverUrl.isNotBlank()) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            TextButton(
+                onClick = {
+                    runCatching {
+                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(s.serverUrl.trimEnd('/') + "/help/crm")))
+                    }
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Step-by-step setup for Zapier, Make, Jobber…") }
+        }
     }
 }
 

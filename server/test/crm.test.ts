@@ -113,3 +113,13 @@ describe("CRM → phone", () => {
     expect((await call("POST", hookPath(account.inboundUrl), { body: { id: "1", client_name: "A" } })).status).toBe(429);
   });
 });
+
+describe("CRM help page", () => {
+  it("is public and plain", async () => {
+    const res = await call("GET", "/help/crm");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Connect your CRM");
+    expect(html).toContain("Webhooks by Zapier");
+  });
+});
