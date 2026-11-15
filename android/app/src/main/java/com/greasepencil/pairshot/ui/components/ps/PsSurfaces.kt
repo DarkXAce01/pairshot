@@ -24,7 +24,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarData
@@ -38,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -98,6 +103,19 @@ private fun SheetBody(title: String, modifier: Modifier, content: @Composable Co
         content()
     }
 }
+
+/**
+ * For list rows inside a [PsSheet]: widens them past the sheet gutter so their 20 dp padding lines
+ * their text up with the sheet title and their press area runs nearly edge to edge.
+ */
+fun Modifier.psSheetBleed(): Modifier = layout { measurable, constraints ->
+    val extra = SheetRowBleed.roundToPx() * 2
+    val maxW = if (constraints.hasBoundedWidth) constraints.maxWidth + extra else constraints.maxWidth
+    val placeable = measurable.measure(constraints.copy(minWidth = (constraints.minWidth + extra).coerceAtMost(maxW), maxWidth = maxW))
+    layout((placeable.width - extra).coerceAtLeast(0), placeable.height) { placeable.place(-extra / 2, 0) }
+}
+
+private val SheetRowBleed = 20.dp
 
 /** The dialog panel shared by the confirm and reveal dialogs. */
 @Composable
@@ -218,6 +236,39 @@ private fun PsSnackbar(data: SnackbarData) {
             }
         }
     }
+}
+
+/**
+ * An overflow menu (the ⋮ menus): surface, radius md, a hairline edge and no shadow. Put it in a
+ * `Box` with the button that opens it.
+ */
+@Composable
+fun PsMenu(expanded: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val c = Ps.colors
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        shape = Ps.shape.md,
+        containerColor = c.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, c.hairline),
+        content = content,
+    )
+}
+
+/** One item of a [PsMenu], 48 dp tall. [destructive] sets it in pencilText. */
+@Composable
+fun PsMenuItem(text: String, onClick: () -> Unit, icon: ImageVector? = null, destructive: Boolean = false) {
+    val c = Ps.colors
+    val tint = if (destructive) c.pencilText else c.ink
+    DropdownMenuItem(
+        text = { Text(text, style = Ps.type.body, color = tint) },
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 48.dp),
+        leadingIcon = icon?.let { { Icon(it, contentDescription = null, tint = if (destructive) tint else c.inkSoft, modifier = Modifier.size(20.dp)) } },
+    )
 }
 
 /** A selectable mono box for addresses, keys and secrets, with a copy button when [onCopy] is set. */

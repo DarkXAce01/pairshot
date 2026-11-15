@@ -53,25 +53,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -104,13 +89,38 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.greasepencil.pairshot.data.prefs.GhostMode
 import com.greasepencil.pairshot.domain.Rotation
 import com.greasepencil.pairshot.ui.components.PhotoImage
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import com.greasepencil.pairshot.ui.components.ps.PsButton
+import com.greasepencil.pairshot.ui.components.ps.PsButtonVariant
+import com.greasepencil.pairshot.ui.components.ps.PsChip
+import com.greasepencil.pairshot.ui.components.ps.PsChipKind
+import com.greasepencil.pairshot.ui.components.ps.PsChipRow
+import com.greasepencil.pairshot.ui.components.ps.PsChipScroller
+import com.greasepencil.pairshot.ui.components.ps.PsIconButton
+import com.greasepencil.pairshot.ui.components.ps.PsSegmented
+import com.greasepencil.pairshot.ui.components.ps.PsSheet
+import com.greasepencil.pairshot.ui.components.ps.PsSlider
+import com.greasepencil.pairshot.ui.components.ps.PsTextField
+import com.greasepencil.pairshot.ui.components.ps.psPressable
+import com.greasepencil.pairshot.ui.theme.Ps
+import com.greasepencil.pairshot.ui.theme.PsCameraColors
+import com.greasepencil.pairshot.ui.theme.tabular
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-private val Dim = Color(0xFF0E0E0D)
-private val Ink = Color(0xFFEDE9E2)
-private val Muted = Color(0xFF9B968D)
+private val Dim = PsCameraColors.background
+private val Ink = PsCameraColors.ink
+private val Muted = PsCameraColors.muted
 
 @Composable
 fun CameraScreen(onClose: () -> Unit, vm: CameraViewModel = hiltViewModel()) {
@@ -131,14 +141,32 @@ fun CameraScreen(onClose: () -> Unit, vm: CameraViewModel = hiltViewModel()) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Pairshot needs the camera to take your before and after photos.", color = Ink)
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = {
-                    context.startActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
-                    )
-                }) { Text("Open settings") }
-                TextButton(onClick = onClose) { Text("Go back", color = Muted) }
+                Text(
+                    "Pairshot needs the camera",
+                    style = Ps.type.titleM,
+                    color = Ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "It's used only while this screen is open, for your before and after photos.",
+                    style = Ps.type.bodyS,
+                    color = Muted,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(24.dp))
+                PsButton(
+                    "Open settings",
+                    {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                        )
+                    },
+                    onDark = true,
+                )
+                Spacer(Modifier.height(4.dp))
+                PsButton("Go back", onClose, variant = PsButtonVariant.Quiet, onDark = true)
             }
         }
     }
@@ -270,9 +298,10 @@ private fun CameraContent(vm: CameraViewModel, onClose: () -> Unit) {
                 }
                 (cameraError ?: ui.error)?.let {
                     Text(
-                        it, color = Color.White,
+                        it, color = Ink, style = Ps.type.bodyS,
                         modifier = Modifier.align(Alignment.TopCenter).padding(8.dp)
-                            .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(8.dp)).padding(10.dp),
+                            .background(PsCameraColors.overlay, Ps.shape.sm).padding(10.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
                 if (ui.after && target == null && ui.loaded) AllDone(onClose)
@@ -288,8 +317,13 @@ private fun CameraContent(vm: CameraViewModel, onClose: () -> Unit) {
 @Composable
 private fun TopRow(ui: CameraUi, onClose: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Close camera", tint = Ink) }
-        Text(if (ui.after) "AFTER" else "BEFORE", color = Ink, style = MaterialTheme.typography.labelSmall)
+        PsIconButton(Icons.Outlined.Close, "Close camera", onClose, tint = Ink)
+        Text(
+            if (ui.after) "AFTER" else "BEFORE",
+            color = Ink,
+            style = Ps.type.eyebrow,
+            modifier = Modifier.semantics { heading() },
+        )
         Spacer(Modifier.weight(1f))
         val t = ui.target
         val info = if (ui.after) {
@@ -297,7 +331,10 @@ private fun TopRow(ui: CameraUi, onClose: () -> Unit) {
         } else {
             ui.areas.firstOrNull { it.id == ui.selectedAreaId }?.name ?: "No label"
         }
-        Text(info, color = Muted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 12.dp))
+        Text(
+            info, color = Muted, style = Ps.type.bodyS, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp).weight(1f, fill = false),
+        )
     }
 }
 
@@ -357,41 +394,55 @@ private fun ZoomBadge(camera: Camera?, modifier: Modifier) {
     }
     Text(
         "%.1f×".format(ratio),
-        color = Color.White,
-        style = MaterialTheme.typography.labelSmall,
-        modifier = modifier.background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 4.dp),
+        color = Ink,
+        style = Ps.type.chip.tabular(),
+        modifier = modifier
+            .background(PsCameraColors.overlay, Ps.shape.pill)
+            .semantics { contentDescription = "Zoom %.1f times".format(ratio) }
+            .padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }
 
 @Composable
 private fun PeekButton(modifier: Modifier, onPeek: (Boolean) -> Unit) {
-    Text(
-        "HOLD TO PEEK",
-        color = Color.White,
-        style = MaterialTheme.typography.labelSmall,
-        modifier = modifier
-            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
+    Box(
+        modifier
+            .heightIn(min = 48.dp)
+            .semantics { contentDescription = "Hold to see the before" }
             .pointerInput(Unit) {
                 detectTapGestures(onPress = {
                     onPeek(true)
                     tryAwaitRelease()
                     onPeek(false)
                 })
-            }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-    )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "HOLD TO PEEK",
+            color = Ink,
+            style = Ps.type.eyebrow,
+            modifier = Modifier.background(PsCameraColors.overlay, Ps.shape.pill).padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+    }
 }
 
 @Composable
 private fun AllDone(onClose: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().background(Dim.copy(alpha = 0.85f)),
+        Modifier.fillMaxSize().background(PsCameraColors.veil).padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Every before has its after.", color = Ink, style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Every before has its after.",
+            color = Ink,
+            style = Ps.type.titleM,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading(); liveRegion = LiveRegionMode.Polite },
+        )
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onClose) { Text("Back to the job") }
+        PsButton("Back to the job", onClose, onDark = true)
     }
 }
 
@@ -400,30 +451,32 @@ private fun GhostControls(ui: CameraUi, vm: CameraViewModel) {
     if (ui.target == null) {
         Spacer(Modifier.height(56.dp)); return
     }
-    Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        GhostMode.entries.forEach { mode ->
-            FilterChip(
-                selected = ui.ghostMode == mode,
-                onClick = { vm.setGhost(ui.ghostStrength, mode); vm.saveGhostAsDefault() },
-                label = { Text(mode.label) },
-                colors = FilterChipDefaults.filterChipColors(labelColor = Ink),
-                modifier = Modifier.padding(end = 6.dp),
-            )
-        }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PsSegmented(
+            options = GhostMode.entries.map { it.label },
+            selected = GhostMode.entries.indexOf(ui.ghostMode),
+            onSelect = { i -> vm.setGhost(ui.ghostStrength, GhostMode.entries[i]); vm.saveGhostAsDefault() },
+            onDark = true,
+            modifier = Modifier.weight(1.3f),
+        )
         if (ui.ghostMode != GhostMode.OFF) {
-            Slider(
+            PsSlider(
                 value = ui.ghostStrength,
                 onValueChange = { vm.setGhost(it, ui.ghostMode) },
                 onValueChangeFinished = { vm.saveGhostAsDefault() },
                 valueRange = 0.1f..1f,
-                colors = SliderDefaults.colors(inactiveTrackColor = Color(0xFF3A3835)),
-                modifier = Modifier.weight(1f).padding(start = 6.dp).semantics { contentDescription = "Ghost strength" },
+                contentDescription = "Ghost strength",
+                onDark = true,
+                modifier = Modifier.weight(1f).padding(start = 12.dp),
             )
         } else {
             Text(
                 "Shoot freely",
-                color = Muted, style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f).padding(start = 6.dp),
+                color = Muted, style = Ps.type.caption,
+                modifier = Modifier.weight(1f).padding(start = 12.dp),
             )
         }
     }
@@ -431,34 +484,21 @@ private fun GhostControls(ui: CameraUi, vm: CameraViewModel) {
 
 @Composable
 private fun AreaChips(ui: CameraUi, vm: CameraViewModel) {
-    LazyRow(
-        Modifier.fillMaxWidth().height(56.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-    ) {
-        item {
-            FilterChip(
-                selected = ui.selectedAreaId == null,
-                onClick = { vm.selectArea(null) },
-                label = { Text("No label") },
-                colors = FilterChipDefaults.filterChipColors(labelColor = Ink),
-            )
+    PsChipScroller(Modifier.heightIn(min = 56.dp), contentPadding = PaddingValues(horizontal = 16.dp)) {
+        item(key = "none") {
+            PsChip("No label", selected = ui.selectedAreaId == null, onClick = { vm.selectArea(null) }, onDark = true)
         }
         items(ui.areas, key = { it.id }) { area ->
-            FilterChip(
-                selected = area.id == ui.selectedAreaId,
-                onClick = { vm.selectArea(area.id) },
-                label = { Text(area.name) },
-                colors = FilterChipDefaults.filterChipColors(labelColor = Ink),
-            )
+            PsChip(area.name, selected = area.id == ui.selectedAreaId, onClick = { vm.selectArea(area.id) }, onDark = true)
         }
-        item {
-            AssistChip(
+        item(key = "add") {
+            PsChip(
+                "Label",
+                selected = false,
                 onClick = vm::openAreaPicker,
-                label = { Text("Label") },
-                leadingIcon = { Icon(Icons.Filled.Add, null, tint = Ink) },
-                colors = AssistChipDefaults.assistChipColors(labelColor = Ink),
+                leadingIcon = Icons.Outlined.Add,
+                kind = PsChipKind.Action,
+                onDark = true,
             )
         }
     }
@@ -472,69 +512,72 @@ private fun ShutterRow(ui: CameraUi, enabled: Boolean, onShoot: () -> Unit, onUn
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             ui.lastShot?.let { last ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // The thumbnail and the word are one 48 dp+ button.
+                Column(
+                    Modifier
+                        .psPressable(onClick = onUndo, focusShape = Ps.shape.sm)
+                        .clearAndSetSemantics { contentDescription = "Undo last photo"; role = Role.Button }
+                        .padding(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     PhotoImage(
                         last.file, last.rotation,
-                        Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, Muted, RoundedCornerShape(8.dp)),
+                        Modifier.size(52.dp).clip(Ps.shape.sm).border(1.dp, PsCameraColors.hairline, Ps.shape.sm),
                     )
-                    Text(
-                        "UNDO", color = Muted, style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.clickable(onClick = onUndo).padding(6.dp),
-                    )
+                    Text("Undo", color = Muted, style = Ps.type.chip, modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }
         Box(
             Modifier
                 .size(76.dp)
-                .border(4.dp, if (enabled) Color.White else Muted, CircleShape)
+                .psPressable(onClick = onShoot, enabled = enabled, focusShape = CircleShape)
+                .semantics { contentDescription = "Take photo" }
+                .border(4.dp, if (enabled) PsCameraColors.shutter else Muted, CircleShape)
                 .padding(8.dp)
                 .clip(CircleShape)
-                .background(if (enabled) Color.White else Muted)
-                .clickable(enabled = enabled, onClick = onShoot)
-                .semantics { contentDescription = "Take photo" },
+                .background(if (enabled) PsCameraColors.shutter else Muted),
         )
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            OutlinedButton(onClick = onDone) {
-                Text(if (ui.shotsThisSession > 0) "Done · ${ui.shotsThisSession}" else "Done", color = Ink)
-            }
+            PsButton(
+                if (ui.shotsThisSession > 0) "Done · ${ui.shotsThisSession}" else "Done",
+                onDone,
+                variant = PsButtonVariant.Secondary,
+                onDark = true,
+                height = 48.dp,
+                compact = true,
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun AreaPicker(ui: CameraUi, vm: CameraViewModel) {
-    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var custom by remember { mutableStateOf("") }
     val existing = ui.areas.map { it.name.lowercase() }.toSet()
-    ModalBottomSheet(onDismissRequest = vm::closeAreaPicker, sheetState = sheet) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
-            Text("Add a label", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "Optional. Photos you take next get this label, and the client sees it as a heading.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    PsSheet("Add a label", onDismiss = vm::closeAreaPicker) {
+        Text(
+            "Optional. Photos you take next get this label, and the client sees it as a heading.",
+            style = Ps.type.caption,
+            color = Ps.colors.inkSoft,
+        )
+        Spacer(Modifier.height(12.dp))
+        PsChipRow {
+            ui.presets.filter { it.lowercase() !in existing }.forEach { name ->
+                PsChip(name, selected = false, onClick = { vm.addArea(name) }, kind = PsChipKind.Action, leadingIcon = Icons.Outlined.Add)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            PsTextField(
+                custom, { custom = it },
+                modifier = Modifier.weight(1f),
+                placeholder = "Or type one",
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { vm.addArea(custom) }),
             )
-            Spacer(Modifier.height(12.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ui.presets.filter { it.lowercase() !in existing }.forEach { name ->
-                    AssistChip(onClick = { vm.addArea(name) }, label = { Text(name) })
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    custom, { custom = it },
-                    placeholder = { Text("Or type one") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { vm.addArea(custom) }),
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(onClick = { vm.addArea(custom) }, enabled = custom.isNotBlank()) { Text("Add") }
-            }
+            Spacer(Modifier.width(12.dp))
+            PsButton("Add", { vm.addArea(custom) }, enabled = custom.isNotBlank())
         }
     }
 }

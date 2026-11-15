@@ -7,19 +7,14 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -37,7 +32,10 @@ import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.domain.gallery.BusinessInfo
 import com.greasepencil.pairshot.domain.gallery.GalleryBuilder
 import com.greasepencil.pairshot.ui.components.PhotoPrep
+import com.greasepencil.pairshot.ui.components.ps.PsScaffold
+import com.greasepencil.pairshot.ui.components.ps.PsTopBar
 import com.greasepencil.pairshot.ui.nav.PreviewRoute
+import com.greasepencil.pairshot.ui.theme.Ps
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -74,26 +72,25 @@ class PreviewViewModel @Inject constructor(
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreviewScreen(onBack: () -> Unit, vm: PreviewViewModel = hiltViewModel()) {
     val html by vm.html.collectAsStateWithLifecycle()
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Client preview", style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-            )
-        },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+    val c = Ps.colors
+    PsScaffold(topBar = { PsTopBar("Client preview", onBack = onBack) }) {
+        Column(Modifier.fillMaxSize()) {
             Text(
                 "This is the page your client gets. Only finished pairs that aren't hidden are on it.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                style = Ps.type.caption,
+                color = c.inkSoft,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Ps.space.gutter).padding(bottom = 12.dp),
             )
-            val page = html ?: return@Column
+            HorizontalDivider(thickness = 1.dp, color = c.hairline)
+            val page = html
+            if (page == null) {
+                // Loading: a sunken block where the page will be.
+                Box(Modifier.fillMaxSize().background(c.sunken))
+                return@Column
+            }
             AndroidView(
                 factory = { context ->
                     // Photos are served from app storage through this loader: upright, resized, EXIF stripped,

@@ -82,7 +82,8 @@ private val PsCameraDanger = PsDarkColors.pencilText
 
 /**
  * The one button. 52 dp high (Quiet and Danger 48 dp), radius md. Disabled shows at 40 %. [busy]
- * swaps the icon for a spinner and disables it. [onDark] is for the camera and crop editor.
+ * swaps the icon for a spinner and disables it. [onDark] is for the camera and crop editor. [compact]
+ * narrows the side padding for three buttons sharing one row.
  */
 @Composable
 fun PsButton(
@@ -96,6 +97,7 @@ fun PsButton(
     fullWidth: Boolean = false,
     onDark: Boolean = false,
     height: Dp? = null,
+    compact: Boolean = false,
 ) {
     val colors = buttonColors(variant, onDark)
     val quiet = variant == PsButtonVariant.Quiet || variant == PsButtonVariant.Danger
@@ -112,7 +114,7 @@ fun PsButton(
             .background(colors.fill, shape)
             .then(if (colors.border != null) Modifier.border(1.dp, colors.border, shape) else Modifier)
             .semantics { if (busy) stateDescription = "Busy" }
-            .padding(horizontal = if (quiet) 12.dp else 20.dp, vertical = 8.dp),
+            .padding(horizontal = if (quiet || compact) 12.dp else 20.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

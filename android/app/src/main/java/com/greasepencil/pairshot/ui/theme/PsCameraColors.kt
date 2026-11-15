@@ -10,4 +10,8 @@ object PsCameraColors {
     val hairline = Color(0xFF3A3835)
     val shutter = Color(0xFFFFFFFF)
     val ghost = Color(0xFFE5553A)
+    /** Badges and notes over the live preview (zoom, peek, errors): black at 55 %. */
+    val overlay = Color(0x8C000000)
+    /** Behind the "every before has its after" note. */
+    val veil = Color(0xD90E0E0D)
 }

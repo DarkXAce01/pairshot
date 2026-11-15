@@ -4,52 +4,20 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.automirrored.outlined.Label
-import com.greasepencil.pairshot.data.db.AreaEntity
-import com.greasepencil.pairshot.data.repo.PhotoImporter
-import com.greasepencil.pairshot.domain.AreaPresets
-import com.greasepencil.pairshot.ui.components.LabelSheet
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.StarOutline
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,10 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.Crop
-import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,17 +34,39 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.greasepencil.pairshot.data.db.AreaEntity
 import com.greasepencil.pairshot.data.db.PairRow
 import com.greasepencil.pairshot.data.prefs.AppSettings
 import com.greasepencil.pairshot.data.prefs.SettingsStore
 import com.greasepencil.pairshot.data.repo.JobRepository
+import com.greasepencil.pairshot.data.repo.PhotoImporter
+import com.greasepencil.pairshot.domain.AreaPresets
 import com.greasepencil.pairshot.domain.CollageLayout
 import com.greasepencil.pairshot.ui.components.BeforeAfterSlider
 import com.greasepencil.pairshot.ui.components.CollageExporter
+import com.greasepencil.pairshot.ui.components.LabelSheet
+import com.greasepencil.pairshot.ui.components.ps.PsBottomBar
+import com.greasepencil.pairshot.ui.components.ps.PsButton
+import com.greasepencil.pairshot.ui.components.ps.PsButtonVariant
+import com.greasepencil.pairshot.ui.components.ps.PsConfirmDialog
+import com.greasepencil.pairshot.ui.components.ps.PsListBlock
+import com.greasepencil.pairshot.ui.components.ps.PsListRow
+import com.greasepencil.pairshot.ui.components.ps.PsScaffold
+import com.greasepencil.pairshot.ui.components.ps.PsSheet
+import com.greasepencil.pairshot.ui.components.ps.PsSnackbarHost
+import com.greasepencil.pairshot.ui.components.ps.PsTopBar
+import com.greasepencil.pairshot.ui.components.ps.psSheetBleed
 import com.greasepencil.pairshot.ui.nav.PairRoute
+import com.greasepencil.pairshot.ui.theme.Ps
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -142,7 +128,12 @@ class PairViewModel @Inject constructor(
     fun delete() = viewModelScope.launch { repo.deletePair(pairId) }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/** The two share layouts offered until the share-image sheet arrives. */
+private val shareLayouts = listOf(
+    CollageLayout.Style.SIDE_BY_SIDE to "Side by side",
+    CollageLayout.Style.STACKED to "Before on top",
+)
+
 @Composable
 fun PairScreen(
     onBack: () -> Unit,
@@ -155,9 +146,10 @@ fun PairScreen(
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var confirmDelete by remember { mutableStateOf(false) }
-    var exportMenu by remember { mutableStateOf(false) }
+    var shareSheet by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
     var labelSheet by remember { mutableStateOf(false) }
+    var moreSheet by remember { mutableStateOf(false) }
     var cropping by remember { mutableStateOf(false) }
     var rePairing by remember { mutableStateOf(false) }
     val jobPairs by vm.jobPairs.collectAsStateWithLifecycle()
@@ -166,119 +158,121 @@ fun PairScreen(
     val pickAfter = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) vm.importAfter(uri) { scope.launch { snackbar.showSnackbar("That photo couldn't be read.") } }
     }
+    val launchPickAfter = { pickAfter.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
 
     LaunchedEffect(s.loaded, s.pair) { if (s.loaded && s.pair == null) onBack() }
     val row = s.pair ?: return
     val p = row.pair
+    val siblings = jobPairs.filter { it.pair.areaId == p.areaId }
+    val menu = moreMenu(
+        siblings = siblings.size,
+        index = siblings.indexOfFirst { it.pair.id == p.id },
+        jobPairs = jobPairs.size,
+        hasAfter = !row.needsAfter,
+    )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(row.areaName ?: "No label", style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = { IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Delete pair") } },
-            )
+    PsScaffold(
+        topBar = { PsTopBar(row.areaName ?: "No label", onBack = onBack) },
+        bottomBar = {
+            PsBottomBar {
+                if (row.needsAfter) {
+                    PsButton("Shoot the after", { onRetakeAfter(p.jobId, p.id) }, Modifier.weight(1f), icon = Icons.Outlined.CameraAlt)
+                } else {
+                    PsButton(
+                        if (exporting) "Making image…" else "Share as one image",
+                        { shareSheet = true },
+                        Modifier.weight(1f),
+                        variant = PsButtonVariant.Secondary,
+                        icon = Icons.Outlined.Share,
+                        busy = exporting,
+                    )
+                }
+            }
         },
-        snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
+        snackbarHost = { PsSnackbarHost(snackbar) },
+    ) {
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             BeforeAfterSlider(
                 row.beforeFile, row.beforeRotation, row.afterFile, row.afterRotation ?: 0,
-                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().padding(horizontal = Ps.space.gutter),
             )
-            if (row.needsAfter) {
-                Button(onClick = { onRetakeAfter(p.jobId, p.id) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                    Icon(Icons.Outlined.CameraAlt, null)
-                    Text("  Shoot the after")
-                }
-                TextButton(
-                    onClick = { pickAfter.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Or pick the after from your gallery") }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(
-                    onClick = { labelSheet = true },
-                    label = { Text(row.areaName?.let { "Label: $it" } ?: "Add label") },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Label, null) },
-                )
-                AssistChip(
-                    onClick = vm::setCover,
-                    label = { Text(if (p.isCover) "Cover photo" else "Make cover") },
-                    leadingIcon = { Icon(if (p.isCover) Icons.Filled.Star else Icons.Outlined.StarOutline, null) },
-                )
-                AssistChip(
-                    onClick = { vm.setHidden(!p.hidden) },
-                    label = { Text(if (p.hidden) "Hidden from client" else "Shown to client") },
-                    leadingIcon = { Icon(if (p.hidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) },
-                )
-                val siblings = jobPairs.filter { it.pair.areaId == p.areaId }
-                val at = siblings.indexOfFirst { it.pair.id == p.id }
-                if (siblings.size > 1) {
-                    AssistChip(
-                        onClick = { vm.move(-1) }, enabled = at > 0,
-                        label = { Text("Move earlier") },
-                        leadingIcon = { Icon(Icons.Outlined.ArrowUpward, null) },
-                    )
-                    AssistChip(
-                        onClick = { vm.move(1) }, enabled = at in 0 until siblings.size - 1,
-                        label = { Text("Move later") },
-                        leadingIcon = { Icon(Icons.Outlined.ArrowDownward, null) },
-                    )
-                }
-                AssistChip(
-                    onClick = { cropping = true },
-                    label = { Text(if (p.isCropped) "Cropped" else "Crop") },
-                    leadingIcon = { Icon(Icons.Outlined.Crop, null) },
-                )
-                if (jobPairs.size > 1) {
-                    AssistChip(
-                        onClick = { rePairing = true },
-                        label = { Text("Wrong after? Re-pair") },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Outlined.CompareArrows, null) },
-                    )
-                }
-                if (!row.needsAfter) {
-                    AssistChip(onClick = vm::swap, label = { Text("Swap") }, leadingIcon = { Icon(Icons.Outlined.SwapHoriz, null) })
-                    AssistChip(
-                        onClick = { onRetakeAfter(p.jobId, p.id) },
-                        label = { Text("Retake after") },
-                        leadingIcon = { Icon(Icons.Outlined.CameraAlt, null) },
-                    )
-                }
-            }
-            if (!row.needsAfter) {
-                Column {
-                    Button(onClick = { exportMenu = true }, enabled = !exporting, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                        Icon(Icons.Outlined.Share, null)
-                        Text(if (exporting) "  Making image…" else "  Share as one image")
+            PairTools(
+                cropped = p.isCropped,
+                cover = p.isCover,
+                hidden = p.hidden,
+                onLabel = { labelSheet = true },
+                onCrop = { cropping = true },
+                onCover = vm::setCover,
+                onHidden = vm::setHidden,
+            )
+            PsListBlock {
+                if (row.needsAfter) {
+                    row {
+                        PsListRow(
+                            "Pick the after from your gallery",
+                            leading = { Icon(Icons.Outlined.PhotoLibrary, null, tint = Ps.colors.inkSoft) },
+                            onClick = launchPickAfter,
+                        )
                     }
-                    DropdownMenu(exportMenu, onDismissRequest = { exportMenu = false }) {
-                        listOf(
-                            CollageLayout.Style.SIDE_BY_SIDE to "Side by side",
-                            CollageLayout.Style.STACKED to "Before on top",
-                        ).forEach { (style, label) ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = {
-                                exportMenu = false
-                                exporting = true
-                                scope.launch {
-                                    runCatching {
-                                        CollageExporter.export(context, row, style, settings.businessName, watermark = !settings.isPro)
-                                    }.onSuccess { CollageExporter.share(context, it) }
-                                        .onFailure { snackbar.showSnackbar("Couldn't make the image. Try again.") }
-                                    exporting = false
-                                }
-                            })
-                        }
+                } else {
+                    row {
+                        PsListRow(
+                            "Retake the after",
+                            leading = { Icon(Icons.Outlined.CameraAlt, null, tint = Ps.colors.inkSoft) },
+                            onClick = { onRetakeAfter(p.jobId, p.id) },
+                        )
                     }
+                }
+                row {
+                    PsListRow(
+                        "More",
+                        leading = { Icon(Icons.Outlined.MoreHoriz, null, tint = Ps.colors.inkSoft) },
+                        onClick = { moreSheet = true },
+                    )
                 }
             }
         }
     }
 
+    if (moreSheet) {
+        MoreSheet(
+            menu,
+            onPick = { item ->
+                moreSheet = false
+                when (item) {
+                    MoreItem.EARLIER -> vm.move(-1)
+                    MoreItem.LATER -> vm.move(1)
+                    MoreItem.RE_PAIR -> rePairing = true
+                    MoreItem.SWAP -> vm.swap()
+                    MoreItem.PICK_AFTER -> launchPickAfter()
+                    MoreItem.DELETE -> confirmDelete = true
+                }
+            },
+            onDismiss = { moreSheet = false },
+        )
+    }
+    if (shareSheet) {
+        PsSheet("Share as one image", onDismiss = { shareSheet = false }) {
+            Column(Modifier.psSheetBleed()) {
+                shareLayouts.forEach { (style, label) ->
+                    PsListRow(label, showChevron = false, onClick = {
+                        shareSheet = false
+                        exporting = true
+                        scope.launch {
+                            runCatching {
+                                CollageExporter.export(context, row, style, settings.businessName, watermark = !settings.isPro)
+                            }.onSuccess { CollageExporter.share(context, it) }
+                                .onFailure { snackbar.showSnackbar("Couldn't make the image. Try again.") }
+                            exporting = false
+                        }
+                    })
+                }
+            }
+        }
+    }
     if (cropping) {
         val (w, h) = com.greasepencil.pairshot.domain.Rotation.size(row.beforeWidth, row.beforeHeight, row.beforeRotation)
         CropEditor(
@@ -309,12 +303,14 @@ fun PairScreen(
         )
     }
     if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this pair?") },
-            text = { Text("Both photos are deleted from this phone.") },
-            confirmButton = { TextButton(onClick = { confirmDelete = false; vm.delete() }) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Keep") } },
+        PsConfirmDialog(
+            title = "Delete this pair?",
+            text = "Both photos are deleted from this phone.",
+            confirm = "Delete",
+            onConfirm = { confirmDelete = false; vm.delete() },
+            onDismiss = { confirmDelete = false },
+            destructive = true,
+            dismiss = "Keep",
         )
     }
 }

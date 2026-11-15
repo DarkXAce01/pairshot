@@ -1,20 +1,17 @@
 package com.greasepencil.pairshot.ui.job
 
-import android.provider.Settings
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,17 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.greasepencil.pairshot.brand.GreasePencil
 import com.greasepencil.pairshot.brand.greasePencilLoop
-import com.greasepencil.pairshot.brand.studioRedFor
 import com.greasepencil.pairshot.ui.components.PhotoImage
+import com.greasepencil.pairshot.ui.components.ps.rememberReducedMotion
+import com.greasepencil.pairshot.ui.theme.Ps
 import kotlinx.coroutines.delay
 
 /** The first time a link goes out: the cover photo, the red loop drawn round it, "Sent." */
@@ -50,26 +45,24 @@ private const val HOLD_MILLIS = 700L
  */
 @Composable
 fun SentMoment(moment: Moment, onDone: () -> Unit) {
-    val context = LocalContext.current
-    val still = remember {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-    }
+    val still = rememberReducedMotion()
     val done by rememberUpdatedState(onDone)
     val draw = remember { Animatable(if (still) 1f else 0f) }
     val word = remember { Animatable(if (still) 1f else 0f) }
+    val motion = Ps.motion
     LaunchedEffect(moment) {
         if (!still) {
-            draw.animateTo(1f, tween(GreasePencil.DRAW_MILLIS + 250, easing = FastOutSlowInEasing))
-            word.animateTo(1f, tween(220))
+            draw.animateTo(1f, tween(motion.loop, easing = motion.easing))
+            word.animateTo(1f, tween(motion.standard))
         }
         delay(HOLD_MILLIS)
         done()
     }
-    val ink = MaterialTheme.colorScheme.onBackground
+    val c = Ps.colors
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.96f))
+            .background(c.paper.copy(alpha = 0.96f))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { done() }
             .clearAndSetSemantics {
                 contentDescription = "Sent. Your client link is ready."
@@ -77,19 +70,22 @@ fun SentMoment(moment: Moment, onDone: () -> Unit) {
             },
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center) {
-                Canvas(Modifier.size(300.dp, 250.dp).greasePencilLoop(studioRedFor(ink), { draw.value }, strokeWidth = 0.035f)) {}
-                val photo = Modifier.size(200.dp, 150.dp).clip(RoundedCornerShape(10.dp))
+                Canvas(Modifier.size(300.dp, 250.dp).greasePencilLoop(c.pencil, { draw.value }, strokeWidth = 0.035f)) {}
+                val photo = Modifier.size(200.dp, 150.dp).clip(Ps.shape.md)
                 if (moment.coverFile != null) PhotoImage(moment.coverFile, moment.coverRotation, photo)
-                else Box(photo.background(MaterialTheme.colorScheme.surfaceVariant))
+                else Box(photo.background(c.sunken))
             }
-            Text(
-                "Sent.",
-                style = MaterialTheme.typography.displaySmall.copy(fontSize = 52.sp),
-                color = ink,
+            Spacer(Modifier.height(28.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.graphicsLayer { alpha = word.value; translationY = (1f - word.value) * 24f },
-            )
+            ) {
+                Text("Sent.", style = Ps.type.display, color = c.ink)
+                Spacer(Modifier.height(8.dp))
+                Text("Pick how to send it.", style = Ps.type.caption, color = c.inkSoft)
+            }
         }
     }
 }

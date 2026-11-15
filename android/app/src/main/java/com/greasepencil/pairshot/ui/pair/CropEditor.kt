@@ -7,19 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -42,6 +36,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.greasepencil.pairshot.domain.Crop
 import com.greasepencil.pairshot.ui.components.PhotoImage
+import com.greasepencil.pairshot.ui.components.ps.PsButton
+import com.greasepencil.pairshot.ui.components.ps.PsButtonVariant
+import com.greasepencil.pairshot.ui.components.ps.PsChip
+import com.greasepencil.pairshot.ui.components.ps.PsChipRow
+import com.greasepencil.pairshot.ui.theme.Ps
+import com.greasepencil.pairshot.ui.theme.PsCameraColors
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -68,7 +68,6 @@ fun centredCrop(aspect: Float?, photoAspect: Float): Crop {
  * Full-screen crop of the before photo; the same crop is used on the after so they still line up.
  * Drag inside the box to move it, or a corner to resize it.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CropEditor(
     file: String,
@@ -82,15 +81,17 @@ fun CropEditor(
     var shape by remember { mutableStateOf<Float?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.fillMaxSize().background(Color(0xFF0D0C0B)).systemBarsPadding().padding(16.dp),
+            Modifier.fillMaxSize().background(PsCameraColors.background).systemBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Crop", style = MaterialTheme.typography.headlineSmall, color = Color.White)
-            Text(
-                "The after gets the same crop, so the pair still lines up.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFBDB8AF),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Crop", style = Ps.type.titleM, color = PsCameraColors.ink, modifier = Modifier.semantics { heading() })
+                Text(
+                    "The after gets the same crop, so the pair still lines up.",
+                    style = Ps.type.caption,
+                    color = PsCameraColors.muted,
+                )
+            }
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 val fitsWidth = maxWidth / maxHeight < photoAspect
                 val w = if (fitsWidth) maxWidth else maxHeight * photoAspect
@@ -99,18 +100,19 @@ fun CropEditor(
                     CropBox(crop, lockAspect = shape?.let { it / photoAspect }) { crop = it }
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PsChipRow {
                 shapes.forEach { s ->
-                    FilterChip(
+                    PsChip(
+                        s.label,
                         selected = shape == s.aspect && (s.aspect != null || crop.isFull),
                         onClick = { shape = s.aspect; crop = centredCrop(s.aspect, photoAspect) },
-                        label = { Text(s.label) },
+                        onDark = true,
                     )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Cancel", color = Color.White) }
-                Button(onClick = { onSave(crop.clamped()) }, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Save crop") }
+                PsButton("Cancel", onDismiss, Modifier.weight(1f), variant = PsButtonVariant.Secondary, onDark = true)
+                PsButton("Save crop", { onSave(crop.clamped()) }, Modifier.weight(1f), onDark = true)
             }
         }
     }
