@@ -79,7 +79,14 @@ data class PairEntity(
     val hidden: Boolean = false,
     val isCover: Boolean = false,
     val createdAt: Long,
-)
+    /** The crop, as fractions of the upright photo (0..1), used for both before and after. Full photo by default. */
+    @ColumnInfo(defaultValue = "0") val cropLeft: Float = 0f,
+    @ColumnInfo(defaultValue = "0") val cropTop: Float = 0f,
+    @ColumnInfo(defaultValue = "1") val cropRight: Float = 1f,
+    @ColumnInfo(defaultValue = "1") val cropBottom: Float = 1f,
+) {
+    val isCropped: Boolean get() = cropLeft > 0f || cropTop > 0f || cropRight < 1f || cropBottom < 1f
+}
 
 /** A pair with what the screens need from its area and photos. */
 data class PairRow(
@@ -106,6 +113,9 @@ data class JobSummary(
     val coverFile: String?,
     val coverRotation: Int?,
     @ColumnInfo(name = "lastShotAt") val lastShotAt: Long?,
+    val linkState: SendState? = null,
+    val linkRemoteState: String? = null,
+    val linkViewedAt: Long? = null,
 )
 
 /** Where a job's client link is at. One job has at most one gallery (one link). */

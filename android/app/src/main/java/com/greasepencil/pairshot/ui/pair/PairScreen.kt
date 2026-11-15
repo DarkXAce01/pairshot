@@ -58,6 +58,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -122,6 +126,16 @@ class PairViewModel @Inject constructor(
     val settings: StateFlow<AppSettings> = kotlinx.coroutines.flow.combine(settingsStore.settings, cloud.state) { s, c -> s.copy(isPro = c.isPro) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
+    /** The other pairs in this job, for re-pairing, and this pair's place within its label. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val jobPairs: StateFlow<List<PairRow>> = state.map { it.pair?.pair?.jobId }.distinctUntilChanged()
+        .flatMapLatest { jobId -> if (jobId == null) flowOf(emptyList()) else repo.observePairs(jobId) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun move(delta: Int) = viewModelScope.launch { repo.movePair(pairId, delta) }
+    fun giveAfterTo(otherPairId: String) = viewModelScope.launch { repo.swapAfters(pairId, otherPairId) }
+    fun setCrop(c: com.greasepencil.pairshot.domain.Crop) = viewModelScope.launch { repo.setCrop(pairId, c) }
+
     fun setCover() = viewModelScope.launch { repo.setCover(pairId) }
     fun setHidden(h: Boolean) = viewModelScope.launch { repo.setHidden(pairId, h) }
     fun swap() = viewModelScope.launch { repo.swap(pairId) }
@@ -144,6 +158,9 @@ fun PairScreen(
     var exportMenu by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
     var labelSheet by remember { mutableStateOf(false) }
+    var cropping by remember { mutableStateOf(false) }
+    var rePairing by remember { mutableStateOf(false) }
+    val jobPairs by vm.jobPairs.collectAsStateWithLifecycle()
     val labels by vm.labels.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
     val pickAfter = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -198,6 +215,32 @@ fun PairScreen(
                     label = { Text(if (p.hidden) "Hidden from client" else "Shown to client") },
                     leadingIcon = { Icon(if (p.hidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) },
                 )
+                val siblings = jobPairs.filter { it.pair.areaId == p.areaId }
+                val at = siblings.indexOfFirst { it.pair.id == p.id }
+                if (siblings.size > 1) {
+                    AssistChip(
+                        onClick = { vm.move(-1) }, enabled = at > 0,
+                        label = { Text("Move earlier") },
+                        leadingIcon = { Icon(Icons.Outlined.ArrowUpward, null) },
+                    )
+                    AssistChip(
+                        onClick = { vm.move(1) }, enabled = at in 0 until siblings.size - 1,
+                        label = { Text("Move later") },
+                        leadingIcon = { Icon(Icons.Outlined.ArrowDownward, null) },
+                    )
+                }
+                AssistChip(
+                    onClick = { cropping = true },
+                    label = { Text(if (p.isCropped) "Cropped" else "Crop") },
+                    leadingIcon = { Icon(Icons.Outlined.Crop, null) },
+                )
+                if (jobPairs.size > 1) {
+                    AssistChip(
+                        onClick = { rePairing = true },
+                        label = { Text("Wrong after? Re-pair") },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Outlined.CompareArrows, null) },
+                    )
+                }
                 if (!row.needsAfter) {
                     AssistChip(onClick = vm::swap, label = { Text("Swap") }, leadingIcon = { Icon(Icons.Outlined.SwapHoriz, null) })
                     AssistChip(
@@ -236,6 +279,25 @@ fun PairScreen(
         }
     }
 
+    if (cropping) {
+        val (w, h) = com.greasepencil.pairshot.domain.Rotation.size(row.beforeWidth, row.beforeHeight, row.beforeRotation)
+        CropEditor(
+            file = row.beforeFile,
+            rotation = row.beforeRotation,
+            photoAspect = if (w > 0 && h > 0) w.toFloat() / h else com.greasepencil.pairshot.ui.components.displayAspect(row.beforeRotation),
+            initial = com.greasepencil.pairshot.domain.Crop.of(p),
+            onSave = { vm.setCrop(it); cropping = false },
+            onDismiss = { cropping = false },
+        )
+    }
+    if (rePairing) {
+        RePairSheet(
+            pairs = jobPairs.filter { it.pair.id != p.id },
+            hasAfter = !row.needsAfter,
+            onPick = { vm.giveAfterTo(it); rePairing = false; scope.launch { snackbar.showSnackbar("Afters swapped.") } },
+            onDismiss = { rePairing = false },
+        )
+    }
     if (labelSheet) {
         LabelSheet(
             current = p.areaId,

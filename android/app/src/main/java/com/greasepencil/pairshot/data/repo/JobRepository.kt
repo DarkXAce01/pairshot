@@ -8,6 +8,7 @@ import com.greasepencil.pairshot.data.db.JobSummary
 import com.greasepencil.pairshot.data.db.PairEntity
 import com.greasepencil.pairshot.data.db.PairRow
 import com.greasepencil.pairshot.data.db.PhotoEntity
+import com.greasepencil.pairshot.domain.Crop
 import com.greasepencil.pairshot.domain.Ids
 import kotlinx.coroutines.flow.Flow
 import java.io.File
@@ -141,6 +142,40 @@ class JobRepository @Inject constructor(
         val pair = pairs.get(pairId) ?: return
         val after = pair.afterPhotoId ?: return
         pairs.update(pair.copy(beforePhotoId = after, afterPhotoId = pair.beforePhotoId))
+    }
+
+    /** Moves a pair [delta] places within its label (−1 earlier, +1 later). Returns false at either end. */
+    suspend fun movePair(pairId: String, delta: Int): Boolean = db.withTransaction {
+        val pair = pairs.get(pairId) ?: return@withTransaction false
+        val list = pairs.inArea(pair.jobId, pair.areaId).toMutableList()
+        val from = list.indexOfFirst { it.id == pairId }
+        val to = from + delta
+        if (from < 0 || to !in list.indices) return@withTransaction false
+        list.add(to, list.removeAt(from))
+        list.forEachIndexed { i, p -> if (p.position != i) pairs.update(p.copy(position = i)) }
+        jobs.touch(pair.jobId, clock.now())
+        true
+    }
+
+    /**
+     * Re-pairs: the after of [pairId] goes with [otherPairId]'s before and the other way round, for afters
+     * shot against the wrong before. Either pair may still be waiting for its after.
+     */
+    suspend fun swapAfters(pairId: String, otherPairId: String) = db.withTransaction {
+        val a = pairs.get(pairId) ?: return@withTransaction
+        val b = pairs.get(otherPairId) ?: return@withTransaction
+        if (a.jobId != b.jobId || a.id == b.id) return@withTransaction
+        pairs.update(a.copy(afterPhotoId = b.afterPhotoId))
+        pairs.update(b.copy(afterPhotoId = a.afterPhotoId))
+        jobs.touch(a.jobId, clock.now())
+    }
+
+    /** Sets a pair's crop (fractions of the upright photo). A crop smaller than 10 % either way is refused. */
+    suspend fun setCrop(pairId: String, crop: Crop) {
+        val pair = pairs.get(pairId) ?: return
+        val c = crop.clamped()
+        pairs.update(pair.copy(cropLeft = c.left, cropTop = c.top, cropRight = c.right, cropBottom = c.bottom))
+        jobs.touch(pair.jobId, clock.now())
     }
 
     suspend fun setHidden(pairId: String, hidden: Boolean) {

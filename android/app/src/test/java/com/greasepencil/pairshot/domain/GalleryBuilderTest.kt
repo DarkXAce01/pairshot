@@ -32,6 +32,17 @@ class GalleryBuilderTest {
         assertThat(m.sections.flatMap { it.pairs }.map { it.id }).containsExactly("a")
     }
 
+    @Test fun `a crop goes to the page, a full photo sends none, and moved pairs keep their order`() {
+        val cropped = pairRow("c", 1, hasAfter = true).let { it.copy(pair = it.pair.copy(cropLeft = 0.1f, cropRight = 0.9f)) }
+        val a = pairRow("a", 2, hasAfter = true).let { it.copy(pair = it.pair.copy(position = 2)) }
+        val b = pairRow("b", 3, hasAfter = true).let { it.copy(pair = it.pair.copy(position = 1)) }
+        val m = build(listOf(cropped, a, b))
+        assertThat(m.cover?.crop).containsExactly(0.1f, 0f, 0.9f, 1f).inOrder()
+        assertThat(m.sections.flatMap { it.pairs }.map { it.id }).containsExactly("b", "a").inOrder()
+        assertThat(m.sections.flatMap { it.pairs }.all { it.crop == null }).isTrue()
+        assertThat(m.toJson()).contains("\"crop\":[0.1,0.0,0.9,1.0]")
+    }
+
     @Test fun `without a chosen cover the first shot leads`() {
         val m = build(listOf(pairRow("late", 5, hasAfter = true), pairRow("early", 1, hasAfter = true)))
         assertThat(m.cover?.id).isEqualTo("early")

@@ -13,6 +13,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
 import com.greasepencil.pairshot.R
 import com.greasepencil.pairshot.data.db.PairRow
+import com.greasepencil.pairshot.domain.Crop
 import com.greasepencil.pairshot.data.repo.PhotoFiles
 import com.greasepencil.pairshot.domain.CollageLayout
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,8 @@ object CollageExporter {
         watermark: Boolean,
     ): File = withContext(Dispatchers.Default) {
         val afterFile = requireNotNull(pair.afterFile) { "pair has no after" }
-        val aspect = displayAspect(pair.beforeRotation)
+        val crop = Crop.of(pair.pair)
+        val aspect = displayAspect(pair.beforeRotation) * crop.width / crop.height
         val plan = CollageLayout.plan(style, aspect, longEdge = 2048, footer = businessName.isNotBlank() || watermark)
         val out = Bitmap.createBitmap(plan.width, plan.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
@@ -40,7 +42,7 @@ object CollageExporter {
         fun drawCell(file: String, rotation: Int, box: CollageLayout.Box, label: String) {
             val bmp = Bitmaps.decode(PhotoFiles.file(context, file), maxOf(box.width, box.height), rotation) ?: return
             val dst = RectF(box.left.toFloat(), box.top.toFloat(), (box.left + box.width).toFloat(), (box.top + box.height).toFloat())
-            canvas.drawBitmap(bmp, centerCrop(bmp.width, bmp.height, box.width, box.height), dst, Paint(Paint.FILTER_BITMAP_FLAG))
+            canvas.drawBitmap(bmp, cropped(bmp.width, bmp.height, crop, box.width, box.height), dst, Paint(Paint.FILTER_BITMAP_FLAG))
             bmp.recycle()
             val textSize = plan.labelHeight * 0.42f
             val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; typeface = mono; this.textSize = textSize; letterSpacing = 0.12f }
@@ -86,6 +88,14 @@ object CollageExporter {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    /** The pair's [crop] of a srcW×srcH image, then centre-cut to fill a dstW×dstH box. */
+    fun cropped(srcW: Int, srcH: Int, crop: Crop, dstW: Int, dstH: Int): Rect {
+        val l = (crop.left * srcW).toInt(); val t = (crop.top * srcH).toInt()
+        val w = ((crop.right - crop.left) * srcW).toInt().coerceAtLeast(1)
+        val h = ((crop.bottom - crop.top) * srcH).toInt().coerceAtLeast(1)
+        return centerCrop(w, h, dstW, dstH).apply { offset(l, t) }
     }
 
     /** The part of a srcW×srcH image that fills a dstW×dstH box, cut evenly from the long sides. */

@@ -55,6 +55,18 @@ describe("sending a gallery", () => {
     expect(photo.headers.get("content-type")).toBe("image/jpeg");
   });
 
+  it("keeps a sensible crop and drops a broken one", async () => {
+    const { token } = await signIn();
+    const pairs = await makePairs(token, 2);
+    const item = (p: (typeof pairs)[0], crop: unknown) => ({ id: p.id, before: { src: p.before, w: 3, h: 4 }, after: { src: p.after, w: 3, h: 4 }, crop });
+    const { body } = await send(token, pairs, {
+      over: { cover: item(pairs[0], [0.1, 0.2, 0.9, 0.80001]), sections: [{ pairs: [item(pairs[1], [0.5, 0, 0.4, 1])] }] },
+    });
+    const html = await (await call("GET", new URL(body.url).pathname)).text();
+    expect(html).toContain('"crop":[0.1,0.2,0.9,0.8]');
+    expect(html.match(/"crop"/g)).toHaveLength(1);
+  });
+
   it("text in the gallery can't break out of the page", async () => {
     const { token } = await signIn();
     const pairs = await makePairs(token, 1);

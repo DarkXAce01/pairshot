@@ -42,7 +42,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import com.greasepencil.pairshot.data.db.JobSummary
+import com.greasepencil.pairshot.domain.JobStatus
 import com.greasepencil.pairshot.data.repo.Clock
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.domain.HomeOrder
@@ -226,7 +229,36 @@ private fun JobCard(summary: JobSummary, onClick: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Text(progressText(summary), style = MaterialTheme.typography.labelSmall, color = progressColor(summary))
         }
+        Spacer(Modifier.width(8.dp))
+        StatusPill(statusOf(summary))
     }
+}
+
+fun statusOf(s: JobSummary): JobStatus = JobStatus.of(
+    pairCount = s.pairCount,
+    doneCount = s.doneCount,
+    linkSent = s.linkRemoteState != null,
+    linkLive = s.linkRemoteState == "live",
+    viewed = s.linkViewedAt != null,
+)
+
+/** The job's stage in a word; Sent and Seen stand out because they're about the client. */
+@Composable
+private fun StatusPill(status: JobStatus) {
+    val c = MaterialTheme.colorScheme
+    val (bg, fg) = when (status) {
+        JobStatus.SEEN -> c.primary to c.onPrimary
+        JobStatus.SENT -> c.primaryContainer to c.onPrimaryContainer
+        JobStatus.DONE -> c.secondaryContainer to c.onSecondaryContainer
+        else -> c.surfaceVariant to c.onSurfaceVariant
+    }
+    Text(
+        status.label,
+        style = MaterialTheme.typography.labelMedium,
+        color = fg,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 10.dp, vertical = 5.dp)
+            .semantics { contentDescription = "Status: ${status.label}" },
+    )
 }
 
 fun progressText(s: JobSummary): String = when {

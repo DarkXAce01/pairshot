@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertThat
 import com.greasepencil.pairshot.data.db.AppDatabase
 import com.greasepencil.pairshot.data.db.MIGRATION_1_2
 import com.greasepencil.pairshot.data.db.MIGRATION_2_3
+import com.greasepencil.pairshot.data.db.MIGRATION_3_4
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,6 +62,20 @@ class MigrationTest {
             execSQL("INSERT INTO jobs (id, source, clientName, createdAt, updatedAt) VALUES ('j', 'MANUAL', 'Dana', 1, 1)")
             close()
         }
-        helper.runMigrationsAndValidate("m13.db", 3, true, MIGRATION_1_2, MIGRATION_2_3)
+        helper.runMigrationsAndValidate("m13.db", 4, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    }
+
+    @Test fun `v3 pairs get a full-photo crop in v4`() {
+        helper.createDatabase("m4.db", 3).apply {
+            execSQL("INSERT INTO jobs (id, source, clientName, createdAt, updatedAt) VALUES ('j', 'MANUAL', 'Dana', 1, 1)")
+            execSQL("INSERT INTO photos (id, jobId, fileName, width, height, zoomRatio, uprightRotation, takenAt) VALUES ('b', 'j', 'b.jpg', 3, 4, 1.0, 0, 1)")
+            execSQL("INSERT INTO pairs (id, jobId, areaId, beforePhotoId, afterPhotoId, position, hidden, isCover, createdAt) VALUES ('p', 'j', NULL, 'b', NULL, 0, 0, 0, 5)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m4.db", 4, true, MIGRATION_3_4)
+        db.query("SELECT cropLeft, cropTop, cropRight, cropBottom FROM pairs").use { c ->
+            c.moveToFirst()
+            assertThat(listOf(c.getFloat(0), c.getFloat(1), c.getFloat(2), c.getFloat(3))).containsExactly(0f, 0f, 1f, 1f).inOrder()
+        }
     }
 }

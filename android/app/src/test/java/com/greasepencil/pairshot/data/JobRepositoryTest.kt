@@ -10,6 +10,7 @@ import com.greasepencil.pairshot.data.repo.CapturedPhoto
 import com.greasepencil.pairshot.data.repo.Clock
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.data.repo.PhotoFiles
+import com.greasepencil.pairshot.domain.Crop
 import com.greasepencil.pairshot.domain.Ids
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -196,5 +197,51 @@ class JobRepositoryTest {
         repo.setAfter(p2, coverAfter)
         repo.setCover(p2)
         assertThat(repo.observeSummaries().first().single().coverFile).isEqualTo(coverAfter.file.name)
+    }
+
+    @Test fun `pairs move within their label`() = runTest {
+        val job = repo.createJob("Dana Ruiz", "12 Oak St", "House wash")
+        val p1 = repo.addBefore(job, null, shot())
+        val p2 = repo.addBefore(job, null, shot())
+        val p3 = repo.addBefore(job, null, shot())
+        assertThat(repo.movePair(p3, -1)).isTrue()
+        assertThat(repo.observePairs(job).first().map { it.pair.id }).containsExactly(p1, p3, p2).inOrder()
+        assertThat(repo.movePair(p1, -1)).isFalse()
+        assertThat(repo.movePair(p2, 1)).isFalse()
+    }
+
+    @Test fun `re-pairing swaps the afters of two pairs`() = runTest {
+        val job = repo.createJob("Dana Ruiz", "12 Oak St", "House wash")
+        val p1 = repo.addBefore(job, null, shot())
+        val p2 = repo.addBefore(job, null, shot())
+        val after = shot()
+        repo.setAfter(p1, after)
+        repo.swapAfters(p1, p2)
+        val pairs = repo.observePairs(job).first().associateBy { it.pair.id }
+        assertThat(pairs[p1]!!.needsAfter).isTrue()
+        assertThat(pairs[p2]!!.pair.afterPhotoId).isEqualTo(after.id)
+        assertThat(after.file.exists()).isTrue()
+    }
+
+    @Test fun `crops are kept inside the photo`() = runTest {
+        val job = repo.createJob("Dana Ruiz", "12 Oak St", "House wash")
+        val p = repo.addBefore(job, null, shot())
+        repo.setCrop(p, Crop(-0.2f, 0.1f, 0.95f, 0.12f))
+        val c = Crop.of(repo.observePairs(job).first().single().pair)
+        assertThat(c.left).isEqualTo(0f)
+        assertThat(c.right).isEqualTo(0.95f)
+        assertThat(c.height).isWithin(1e-4f).of(Crop.MIN)
+    }
+
+    @Test fun `home shows where each job stands`() = runTest {
+        val job = repo.createJob("Dana Ruiz", "12 Oak St", "House wash")
+        val s = repo.observeSummaries().first().single()
+        assertThat(s.linkState).isNull()
+        assertThat(com.greasepencil.pairshot.domain.JobStatus.of(s.pairCount, s.doneCount, false, false, false).label).isEqualTo("Upcoming")
+        repo.addBefore(job, null, shot())
+        db.galleries().upsert(com.greasepencil.pairshot.data.db.GalleryEntity(id = "g", jobId = job, sendState = com.greasepencil.pairshot.data.db.SendState.SENT, remoteState = "live", firstViewedAt = 5, updatedAt = 1))
+        val t = repo.observeSummaries().first().single()
+        assertThat(t.linkRemoteState).isEqualTo("live")
+        assertThat(t.linkViewedAt).isEqualTo(5)
     }
 }

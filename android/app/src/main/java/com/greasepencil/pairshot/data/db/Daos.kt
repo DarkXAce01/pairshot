@@ -19,8 +19,9 @@ interface JobDao {
              WHERE p.jobId = j.id AND p.hidden = 0 ORDER BY p.isCover DESC, p.createdAt LIMIT 1) AS coverFile,
           (SELECT ph.uprightRotation FROM pairs p JOIN photos ph ON ph.id = COALESCE(p.afterPhotoId, p.beforePhotoId)
              WHERE p.jobId = j.id AND p.hidden = 0 ORDER BY p.isCover DESC, p.createdAt LIMIT 1) AS coverRotation,
-          (SELECT MAX(ph.takenAt) FROM photos ph WHERE ph.jobId = j.id) AS lastShotAt
-        FROM jobs j
+          (SELECT MAX(ph.takenAt) FROM photos ph WHERE ph.jobId = j.id) AS lastShotAt,
+          g.sendState AS linkState, g.remoteState AS linkRemoteState, g.firstViewedAt AS linkViewedAt
+        FROM jobs j LEFT JOIN galleries g ON g.jobId = j.id
         """
     )
     fun observeSummaries(): Flow<List<JobSummary>>
@@ -111,7 +112,7 @@ interface PairDao {
         JOIN photos b ON b.id = p.beforePhotoId
         LEFT JOIN photos af ON af.id = p.afterPhotoId
         WHERE p.jobId = :jobId
-        ORDER BY p.createdAt
+        ORDER BY p.position, p.createdAt
         """
     )
     fun observeForJob(jobId: String): Flow<List<PairRow>>
@@ -140,6 +141,13 @@ interface PairDao {
 
     @Insert
     suspend fun insert(pair: PairEntity)
+
+    /** The pairs sharing [areaId] (null: unlabelled) in a job, in their order. */
+    @Query("SELECT * FROM pairs WHERE jobId = :jobId AND areaId IS :areaId ORDER BY position, createdAt")
+    suspend fun inArea(jobId: String, areaId: String?): List<PairEntity>
+
+    @Query("SELECT * FROM pairs WHERE jobId = :jobId")
+    suspend fun forJob(jobId: String): List<PairEntity>
 
     @Update
     suspend fun update(pair: PairEntity)

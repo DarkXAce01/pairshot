@@ -16,7 +16,7 @@ class Converters {
 
 @Database(
     entities = [JobEntity::class, AreaEntity::class, PhotoEntity::class, PairEntity::class, GalleryEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -66,4 +66,14 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
-val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+/** v4: a crop per pair. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE pairs ADD COLUMN `cropLeft` REAL NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE pairs ADD COLUMN `cropTop` REAL NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE pairs ADD COLUMN `cropRight` REAL NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE pairs ADD COLUMN `cropBottom` REAL NOT NULL DEFAULT 1")
+    }
+}
+
+val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

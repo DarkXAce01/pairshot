@@ -33,7 +33,14 @@ data class GalleryManifest(
     )
     @Serializable data class JobInfo(val title: String, val place: String? = null, val date: String? = null)
     @Serializable data class Img(val src: String, val w: Int, val h: Int)
-    @Serializable data class PairItem(val id: String, val label: String? = null, val before: Img, val after: Img)
+    /** [crop] is left, top, right, bottom as fractions of the photo; absent means the whole photo. */
+    @Serializable data class PairItem(
+        val id: String,
+        val label: String? = null,
+        val before: Img,
+        val after: Img,
+        val crop: List<Float>? = null,
+    )
     @Serializable data class Section(val label: String? = null, val pairs: List<PairItem>)
 
 
@@ -76,6 +83,9 @@ object GalleryBuilder {
                 label = r.areaName,
                 before = GalleryManifest.Img(imageUrl(r.beforeFile, r.beforeRotation), bw, bh),
                 after = GalleryManifest.Img(imageUrl(r.afterFile!!, ar), aw, ah),
+                crop = r.pair.takeIf { it.isCropped }?.let { p ->
+                    listOf(p.cropLeft, p.cropTop, p.cropRight, p.cropBottom).map { (it * 10_000).toInt() / 10_000f }
+                },
             )
         }
 
@@ -86,7 +96,7 @@ object GalleryBuilder {
             .entries
             .sortedBy { (areaId, rows) -> if (areaId == null) -1 else rows.first().areaPosition ?: Int.MAX_VALUE }
             .map { (_, rows) ->
-                GalleryManifest.Section(rows.first().areaName, rows.sortedBy { it.pair.createdAt }.map(::item))
+                GalleryManifest.Section(rows.first().areaName, rows.sortedWith(compareBy({ it.pair.position }, { it.pair.createdAt })).map(::item))
             }
 
         val when_ = job.scheduledAt ?: shown.maxOfOrNull { it.pair.createdAt }

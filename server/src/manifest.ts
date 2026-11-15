@@ -2,7 +2,7 @@ import { fail, isHash } from "./util";
 
 /** The gallery as the phone sends it. Image `src` is the photo's SHA-256; the server turns it into a URL. */
 export interface Img { src: string; w: number; h: number }
-export interface PairItem { id: string; label?: string; before: Img; after: Img }
+export interface PairItem { id: string; label?: string; before: Img; after: Img; crop?: [number, number, number, number] }
 export interface Section { label?: string; pairs: PairItem[] }
 export interface Manifest {
   v: 1;
@@ -40,7 +40,17 @@ function img(v: unknown): Img {
 function pair(v: unknown): PairItem {
   const o = v as Record<string, unknown> | null;
   if (!o || typeof o.id !== "string") fail(400, "bad_manifest", "A pair in the gallery is broken.");
-  return { id: o.id.slice(0, 64), label: str(o.label, 80), before: img(o.before), after: img(o.after) };
+  return { id: o.id.slice(0, 64), label: str(o.label, 80), before: img(o.before), after: img(o.after), crop: crop(o.crop) };
+}
+
+/** [left, top, right, bottom] as fractions; anything odd means "no crop" rather than a refusal. */
+function crop(v: unknown): [number, number, number, number] | undefined {
+  if (!Array.isArray(v) || v.length !== 4 || !v.every((n) => typeof n === "number" && Number.isFinite(n))) return undefined;
+  const [l, t, r, b] = v as number[];
+  if (l < 0 || t < 0 || r > 1 || b > 1 || r - l < 0.05 || b - t < 0.05) return undefined;
+  if (l === 0 && t === 0 && r === 1 && b === 1) return undefined;
+  const k = (n: number) => Math.round(n * 10_000) / 10_000;
+  return [k(l), k(t), k(r), k(b)];
 }
 
 /** Checks and cleans a manifest from the phone. Unknown fields are dropped; text is length-capped. */
