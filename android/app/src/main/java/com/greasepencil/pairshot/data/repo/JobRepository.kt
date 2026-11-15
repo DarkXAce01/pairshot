@@ -69,6 +69,12 @@ class JobRepository @Inject constructor(
 
     suspend fun updateJob(job: JobEntity) = jobs.update(job.copy(updatedAt = clock.now()))
 
+    /** This job's page style (a ClientTemplate id), or null to use the business default. */
+    suspend fun setTemplate(jobId: String, template: String?) = jobs.setTemplate(jobId, template)
+
+    /** A recent finished pair to show in the page-style thumbnails; null before the first one. */
+    fun observeLatestFinishedPair(): Flow<PairRow?> = pairs.observeLatestFinished()
+
     /** Deletes the job, its areas, pairs and photo rows (cascade), then the files on disk. */
     suspend fun deleteJob(id: String) {
         val doomed = photos.forJob(id)

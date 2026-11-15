@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseManifest } from "../src/manifest";
 import { call, env, json, makePairs, send, sendBody, signIn, upload } from "./helpers";
 
 const slugOf = (url: string) => new URL(url).pathname.split("/").pop()!;
@@ -65,6 +66,27 @@ describe("sending a gallery", () => {
     const html = await (await call("GET", new URL(body.url).pathname)).text();
     expect(html).toContain('"crop":[0.1,0.2,0.9,0.8]');
     expect(html.match(/"crop"/g)).toHaveLength(1);
+  });
+
+  it("keeps a known page style and accent, and shows them on the page", async () => {
+    const { token } = await signIn();
+    const pairs = await makePairs(token, 1);
+    const { res, body } = await send(token, pairs, { over: { template: "report", business: { name: "Shine Bros", accent: "#1E3A5F" } } });
+    expect(res.status).toBe(201);
+    const html = await (await call("GET", new URL(body.url).pathname)).text();
+    expect(html).toContain('"template":"report"');
+    expect(html).toContain('"accent":"#1E3A5F"');
+  });
+
+  it("an unknown, wrong-typed or over-long page style is dropped, never refused", async () => {
+    for (const template of ["fancy", 7, { a: 1 }, "classic".repeat(10), "__proto__"]) {
+      const { token } = await signIn(); // a fresh free account each time: 3 links a month
+      const pairs = await makePairs(token, 1);
+      const { res, body } = await send(token, pairs, { over: { template } });
+      expect(res.status).toBe(201);
+      const html = await (await call("GET", new URL(body.url).pathname)).text();
+      expect(html).not.toContain('"template"');
+    }
   });
 
   it("text in the gallery can't break out of the page", async () => {
@@ -246,5 +268,25 @@ describe("closing, expiry and views", () => {
     expect(await env.PHOTOS.head(`p/${account.id}/${pairs[0].before}`)).toBeNull();
     expect((await call("GET", new URL(body.url).pathname)).status).toBe(404);
     expect((await call("GET", "/v1/me", { token })).status).toBe(401);
+  });
+});
+
+describe("the manifest's page style", () => {
+  const img = { src: "a".repeat(64), w: 3, h: 4 };
+  const base = { v: 1, business: { name: "A" }, job: { title: "T" }, cover: { id: "c", before: img, after: img }, sections: [], badge: true };
+
+  it("keeps each of the four styles", () => {
+    for (const t of ["classic", "showroom", "bright", "report"]) {
+      expect(parseManifest({ ...base, template: t }).manifest.template).toBe(t);
+    }
+  });
+
+  it("drops anything else, and old manifests without one still parse", () => {
+    for (const t of ["Classic", "fancy", 1, null, ["report"], "report ".repeat(5)]) {
+      expect(parseManifest({ ...base, template: t }).manifest.template).toBeUndefined();
+    }
+    const old = parseManifest(base).manifest;
+    expect(old.template).toBeUndefined();
+    expect(JSON.stringify(old)).not.toContain("template");
   });
 });

@@ -80,6 +80,17 @@ class CrmSyncTest {
         assertThat(job.address).isEqualTo("12 Oak St")
     }
 
+    @Test fun `a job's own page style survives a CRM update`() = runTest {
+        api.crmPages += page(1, CrmJobDto("J1", "Dana", "555", null, "12 Oak St", "House wash"))
+        api.crmPages += page(2, CrmJobDto("J1", "Dana Ruiz", null, null, null, "Roof clean"))
+        crm.pull()
+        repo.setTemplate(db.jobs().byExternalId("J1")!!.id, "showroom")
+        assertThat(crm.pull()!!.updated).isEqualTo(1)
+        val job = db.jobs().byExternalId("J1")!!
+        assertThat(job.service).isEqualTo("Roof clean")
+        assertThat(job.template).isEqualTo("showroom")
+    }
+
     @Test fun `the same job twice is not counted as a change`() = runTest {
         val j = CrmJobDto("J1", "Dana", "555")
         api.crmPages += page(1, j); api.crmPages += page(2, j)

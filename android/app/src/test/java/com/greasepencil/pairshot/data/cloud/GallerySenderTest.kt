@@ -12,6 +12,7 @@ import com.greasepencil.pairshot.data.repo.Clock
 import com.greasepencil.pairshot.data.repo.JobRepository
 import com.greasepencil.pairshot.data.repo.PhotoFiles
 import com.greasepencil.pairshot.domain.Ids
+import com.greasepencil.pairshot.domain.gallery.ClientTemplate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonObject
@@ -111,6 +112,28 @@ class GallerySenderTest {
         assertThat(sender.fingerprintNow(jobId)).isNotEqualTo(g.sentFingerprint)
         settings.settings.value = settings.settings.value.copy(reviewUrl = "g.page/r/x")
         assertThat(photos.reads).isEmpty()
+    }
+
+    @Test fun `a sent link isn't flagged as changed by the update that added page styles`() = runTest {
+        val g = sender.send(jobId)
+        // The defaults written out in full: Classic and no colour change nothing.
+        settings.settings.value = settings.settings.value.copy(clientTemplate = ClientTemplate.CLASSIC, accent = null)
+        assertThat(sender.fingerprintNow(jobId)).isEqualTo(g.sentFingerprint)
+        assertThat(api.published.values.last().manifest.toString()).doesNotContain("template")
+    }
+
+    @Test fun `a new style or colour, or a job's own style, shows as a change to send`() = runTest {
+        val g = sender.send(jobId)
+        settings.settings.value = settings.settings.value.copy(accent = "#1E3A5F")
+        val withColour = sender.fingerprintNow(jobId)
+        assertThat(withColour).isNotEqualTo(g.sentFingerprint)
+        settings.settings.value = settings.settings.value.copy(accent = null, clientTemplate = ClientTemplate.BRIGHT)
+        assertThat(sender.fingerprintNow(jobId)).isNotEqualTo(g.sentFingerprint)
+        settings.settings.value = settings.settings.value.copy(clientTemplate = ClientTemplate.CLASSIC)
+        repo.setTemplate(jobId, "report")
+        assertThat(sender.fingerprintNow(jobId)).isNotEqualTo(g.sentFingerprint)
+        sender.send(jobId)
+        assertThat(api.published.values.last().manifest.toString()).contains("\"template\":\"report\"")
     }
 
     @Test fun `no signal leaves it queued to go later`() = runTest {

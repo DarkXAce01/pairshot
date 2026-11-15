@@ -2,7 +2,12 @@ package com.greasepencil.pairshot.ui.brand
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.greasepencil.pairshot.data.cloud.CloudSession
+import com.greasepencil.pairshot.data.db.PairRow
 import com.greasepencil.pairshot.data.prefs.AppSettings
+import com.greasepencil.pairshot.data.repo.JobRepository
+import com.greasepencil.pairshot.domain.gallery.ClientTemplate
+import kotlinx.coroutines.flow.map
 import com.greasepencil.pairshot.data.prefs.SettingsStore
 import com.greasepencil.pairshot.domain.ClientMessage
 import com.greasepencil.pairshot.domain.Trade
@@ -13,11 +18,26 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** What the client sees: the business's name, trade, page buttons and message. Everything saves at once. */
+/** What the client sees: the business's name, trade, look, page buttons and message. Everything saves at once. */
 @HiltViewModel
-class BrandViewModel @Inject constructor(private val store: SettingsStore) : ViewModel() {
+class BrandViewModel @Inject constructor(
+    private val store: SettingsStore,
+    repo: JobRepository,
+    cloud: CloudSession,
+) : ViewModel() {
     val settings: StateFlow<AppSettings?> = store.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** A recent finished pair, so the page-style pictures show the business's own work. */
+    val coverPair: StateFlow<PairRow?> = repo.observeLatestFinishedPair()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** For the free plan's "Made with Pairshot" note. Read-only; nothing here calls the server. */
+    val isPro: StateFlow<Boolean> = cloud.state.map { it.isPro }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setAccent(hex: String?) = viewModelScope.launch { store.setAccent(hex) }
+    fun setClientTemplate(t: ClientTemplate) = viewModelScope.launch { store.setClientTemplate(t) }
 
     fun setName(v: String) = viewModelScope.launch { store.setBusinessName(v) }
     fun setTrade(t: Trade) = viewModelScope.launch { store.setTrade(t) }

@@ -80,3 +80,93 @@ test("a bad accent colour is ignored", () => {
   const { doc } = render({ ...base, business: { name: "A", accent: "red;background:url(x)" } });
   assert.equal(doc.documentElement.style.getPropertyValue("--accent"), "");
 });
+
+// ---- Page styles ----
+
+const styles = ["classic", "showroom", "bright", "report"];
+
+for (const t of styles) {
+  test(`${t}: renders hero, sections, buttons and badge without errors`, () => {
+    const { doc, errors } = render({ ...base, template: t });
+    assert.deepEqual(errors, []);
+    assert.equal(doc.documentElement.getAttribute("data-template"), t);
+    assert.equal(doc.querySelector("h1").textContent, "House wash");
+    assert.deepEqual([...doc.querySelectorAll("h2")].map((h) => h.textContent), ["More", "Driveway"]);
+    assert.equal(doc.querySelectorAll(".pair").length, 4);
+    assert.deepEqual([...doc.querySelectorAll(".btn")].map((a) => a.textContent), ["Leave a review", "Call Shine Bros"]);
+    assert.ok(doc.querySelector(".badge"));
+    assert.ok(doc.querySelector(".biz").textContent.includes("Shine Bros"));
+  });
+}
+
+test("an unknown or odd template falls back to Classic", () => {
+  for (const t of ["fancy", "constructor", "__proto__", 7, null]) {
+    const { doc, errors } = render({ ...base, template: t });
+    assert.deepEqual(errors, []);
+    assert.equal(doc.documentElement.getAttribute("data-template"), "classic");
+  }
+  assert.equal(render(base).doc.documentElement.getAttribute("data-template"), "classic");
+});
+
+test("text on the accent is dark on a light accent and white on a dark one", () => {
+  const light = render({ ...base, business: { ...base.business, accent: "#F5E663" } }).doc;
+  assert.equal(light.documentElement.style.getPropertyValue("--on-accent"), "#111111");
+  const dark = render({ ...base, business: { ...base.business, accent: "#1E3A5F" } }).doc;
+  assert.equal(dark.documentElement.style.getPropertyValue("--on-accent"), "#fff");
+  assert.equal(dark.documentElement.style.getPropertyValue("--accent"), "#1E3A5F");
+});
+
+test("an accent that vanishes into the page gets an edge", () => {
+  const white = render({ ...base, template: "bright", business: { ...base.business, accent: "#FFFFFF" } }).doc;
+  assert.ok(white.documentElement.hasAttribute("data-edge"));
+  const ink = render({ ...base, template: "showroom", business: { ...base.business, accent: "#1C1B19" } }).doc;
+  assert.ok(ink.documentElement.hasAttribute("data-edge"));
+  const navy = render({ ...base, template: "bright", business: { ...base.business, accent: "#1E3A5F" } }).doc;
+  assert.equal(navy.documentElement.hasAttribute("data-edge"), false);
+});
+
+test("Report starts side by side with captions and a facts table; the others start on the slider", () => {
+  const report = render({ ...base, template: "report" }).doc;
+  assert.equal(report.querySelectorAll(".ba").length, 0);
+  assert.equal(report.querySelectorAll(".sbs").length, 4);
+  assert.deepEqual([...report.querySelectorAll(".facts dt")].map((d) => d.textContent), ["Service", "Location", "Date", "Photos"]);
+  assert.equal(report.querySelectorAll(".facts dd")[3].textContent, "8");
+  assert.deepEqual([...report.querySelectorAll(".cap")].map((c) => c.textContent), ["House wash", "Driveway", "Driveway"]);
+  for (const t of ["classic", "showroom", "bright"]) assert.equal(render({ ...base, template: t }).doc.querySelectorAll(".ba").length, 4);
+});
+
+test("the compare choice is remembered per style", () => {
+  const json = JSON.stringify({ ...base, template: "bright" }).replace(/</g, "\\u003c");
+  const html = template.replace("/*DATA*/", json).replace("<!--META-->", "");
+  const dom = new JSDOM(html, { runScripts: "dangerously", url: "https://pairshot.test/g/x" });
+  const doc = dom.window.document;
+  [...doc.querySelectorAll(".mode button")][1].click();
+  assert.equal(dom.window.localStorage.getItem("pairshot-mode-bright"), "sbs");
+  assert.equal(dom.window.localStorage.getItem("pairshot-mode"), null);
+  assert.equal(doc.querySelectorAll(".sbs").length, 4);
+});
+
+test("Bright shows a monogram and Showroom puts the cover above the headline", () => {
+  const bright = render({ ...base, template: "bright" }).doc;
+  assert.equal(bright.querySelector(".monogram").textContent, "S");
+  const show = render({ ...base, template: "showroom" }).doc;
+  const cover = show.querySelector(".cover-box"), h1 = show.querySelector("h1");
+  assert.ok(cover.compareDocumentPosition(h1) & 4); // h1 follows the cover
+});
+
+test("business text can't inject HTML in any style", () => {
+  for (const t of styles) {
+    const { doc } = render({ ...base, template: t, business: { name: "<img src=x onerror=alert(1)>" }, job: { title: "<b>x</b>", place: "<i>y</i>" } });
+    assert.equal(doc.querySelector("img[src='x']"), null);
+    assert.equal(doc.querySelector("b"), null);
+    assert.equal(doc.querySelector("h1").textContent, "<b>x</b>");
+  }
+});
+
+test("Download all photos shows only when the page has a download link, in every style", () => {
+  for (const t of styles) {
+    assert.equal(render({ ...base, template: t }).doc.querySelector("a[download]"), null);
+    const { doc } = render({ ...base, template: t, download: "https://pairshot.test/g/x/zip" });
+    assert.equal(doc.querySelector("a[download]").textContent, "Download all photos");
+  }
+});

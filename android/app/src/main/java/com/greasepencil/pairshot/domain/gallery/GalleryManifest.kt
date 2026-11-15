@@ -23,6 +23,8 @@ data class GalleryManifest(
     val sections: List<Section>,
     /** "Made with Pairshot" in the footer (free plan). */
     val badge: Boolean,
+    /** The page style id; absent means Classic (so pages sent before styles existed stay the same). */
+    val template: String? = null,
 ) {
     @Serializable data class Business(
         val name: String,
@@ -57,6 +59,8 @@ data class BusinessInfo(
     val reviewUrl: String,
     val bookingUrl: String,
     val isPro: Boolean,
+    /** The business's colour (#RRGGBB), or null for the page's own. */
+    val accent: String? = null,
 )
 
 object GalleryBuilder {
@@ -70,6 +74,7 @@ object GalleryBuilder {
         imageUrl: (fileName: String, rotation: Int) -> String,
         zone: ZoneId = ZoneId.systemDefault(),
         locale: Locale = Locale.getDefault(),
+        template: ClientTemplate = ClientTemplate.CLASSIC,
     ): GalleryManifest {
         val shown = pairs.filter { !it.needsAfter && !it.pair.hidden }
         val cover = shown.firstOrNull { it.pair.isCover } ?: shown.minByOrNull { it.pair.createdAt }
@@ -106,6 +111,7 @@ object GalleryBuilder {
                 phone = business.phone.trim().ifEmpty { null },
                 reviewUrl = business.reviewUrl.trim().ifEmpty { null }?.let(::normaliseUrl),
                 bookingUrl = business.bookingUrl.trim().ifEmpty { null }?.let(::normaliseUrl),
+                accent = BrandLook.normalise(business.accent),
             ),
             job = GalleryManifest.JobInfo(
                 title = job.service ?: "Your before & after",
@@ -117,8 +123,13 @@ object GalleryBuilder {
             cover = cover?.let(::item),
             sections = sections,
             badge = !business.isPro,
+            // Classic is left out, so a business that changed nothing sends exactly what it did before.
+            template = template.id.takeIf { template != ClientTemplate.CLASSIC },
         )
     }
+
+    /** The style for [job]: its own pick, else the business default. */
+    fun templateFor(job: JobEntity, default: ClientTemplate): ClientTemplate = ClientTemplate.fromId(job.template) ?: default
 
     /** "12 Oak St, Springfield, IL 62704" → "12 Oak St": enough for the client, less to leak. */
     fun street(address: String): String = address.substringBefore(',').trim()

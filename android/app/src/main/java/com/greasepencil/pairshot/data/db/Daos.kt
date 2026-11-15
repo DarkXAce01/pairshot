@@ -49,6 +49,9 @@ interface JobDao {
 
     @Query("UPDATE jobs SET updatedAt = :now WHERE id = :id")
     suspend fun touch(id: String, now: Long)
+
+    @Query("UPDATE jobs SET template = :template WHERE id = :id")
+    suspend fun setTemplate(id: String, template: String?)
 }
 
 @Dao
@@ -132,6 +135,27 @@ interface PairDao {
         """
     )
     fun observe(id: String): Flow<PairRow?>
+
+    /** The cover (or first finished) pair of the job shot most recently, for the look thumbnails. */
+    @Query(
+        """
+        SELECT p.*, a.name AS areaName, a.position AS areaPosition,
+               b.fileName AS beforeFile, b.zoomRatio AS beforeZoom, b.uprightRotation AS beforeRotation,
+               b.width AS beforeWidth, b.height AS beforeHeight,
+               af.fileName AS afterFile, af.uprightRotation AS afterRotation,
+               af.width AS afterWidth, af.height AS afterHeight
+        FROM pairs p
+        LEFT JOIN areas a ON a.id = p.areaId
+        JOIN photos b ON b.id = p.beforePhotoId
+        JOIN photos af ON af.id = p.afterPhotoId
+        WHERE p.hidden = 0 AND p.jobId = (
+            SELECT jobId FROM pairs WHERE afterPhotoId IS NOT NULL AND hidden = 0 ORDER BY createdAt DESC LIMIT 1
+        )
+        ORDER BY p.isCover DESC, p.createdAt
+        LIMIT 1
+        """
+    )
+    fun observeLatestFinished(): Flow<PairRow?>
 
     @Query("SELECT * FROM pairs WHERE id = :id")
     suspend fun get(id: String): PairEntity?

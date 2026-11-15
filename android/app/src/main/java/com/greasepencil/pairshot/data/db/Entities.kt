@@ -24,6 +24,8 @@ data class JobEntity(
     val notes: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    /** This job's client page style (a ClientTemplate id); null uses the business default. */
+    val template: String? = null,
 )
 
 @Entity(

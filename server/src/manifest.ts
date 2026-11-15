@@ -4,6 +4,9 @@ import { fail, isHash } from "./util";
 export interface Img { src: string; w: number; h: number }
 export interface PairItem { id: string; label?: string; before: Img; after: Img; crop?: [number, number, number, number] }
 export interface Section { label?: string; pairs: PairItem[] }
+export const TEMPLATES = ["classic", "showroom", "bright", "report"] as const;
+export type Template = (typeof TEMPLATES)[number];
+
 export interface Manifest {
   v: 1;
   business: { name: string; phone?: string; reviewUrl?: string; bookingUrl?: string; accent?: string };
@@ -11,6 +14,8 @@ export interface Manifest {
   cover: PairItem | null;
   sections: Section[];
   badge: boolean;
+  /** The page style; absent means Classic. */
+  template?: Template;
   /** Only on the live page: where "Download all photos" points. */
   download?: string;
 }
@@ -60,6 +65,9 @@ export function parseManifest(raw: unknown): { manifest: Manifest; hashes: strin
   const b = (o.business ?? {}) as Record<string, unknown>;
   const j = (o.job ?? {}) as Record<string, unknown>;
   const accent = str(b.accent, 7);
+  // An unknown style is dropped (the page shows Classic), never refused.
+  const tpl = str(o.template, 20);
+  const template = tpl && (TEMPLATES as readonly string[]).includes(tpl) ? (tpl as Template) : undefined;
   const sections = Array.isArray(o.sections) ? o.sections : [];
   if (sections.length > 100) fail(400, "bad_manifest", "Too many sections.");
   const manifest: Manifest = {
@@ -78,6 +86,7 @@ export function parseManifest(raw: unknown): { manifest: Manifest; hashes: strin
       return { label: str(so.label, 80), pairs: (Array.isArray(so.pairs) ? so.pairs : []).map(pair) };
     }).filter((s) => s.pairs.length > 0),
     badge: true,
+    template,
   };
   if (!manifest.cover) fail(400, "nothing_to_send", "There are no finished pairs to send yet.");
   const all = [manifest.cover, ...manifest.sections.flatMap((s) => s.pairs)];

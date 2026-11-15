@@ -8,6 +8,7 @@ import com.greasepencil.pairshot.data.db.AppDatabase
 import com.greasepencil.pairshot.data.db.MIGRATION_1_2
 import com.greasepencil.pairshot.data.db.MIGRATION_2_3
 import com.greasepencil.pairshot.data.db.MIGRATION_3_4
+import com.greasepencil.pairshot.data.db.MIGRATION_4_5
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -62,7 +63,7 @@ class MigrationTest {
             execSQL("INSERT INTO jobs (id, source, clientName, createdAt, updatedAt) VALUES ('j', 'MANUAL', 'Dana', 1, 1)")
             close()
         }
-        helper.runMigrationsAndValidate("m13.db", 4, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        helper.runMigrationsAndValidate("m13.db", 5, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
     }
 
     @Test fun `v3 pairs get a full-photo crop in v4`() {
@@ -77,5 +78,22 @@ class MigrationTest {
             c.moveToFirst()
             assertThat(listOf(c.getFloat(0), c.getFloat(1), c.getFloat(2), c.getFloat(3))).containsExactly(0f, 0f, 1f, 1f).inOrder()
         }
+    }
+
+    @Test fun `v4 jobs get no page style of their own in v5, and can be given one`() {
+        helper.createDatabase("m5.db", 4).apply {
+            execSQL("INSERT INTO jobs (id, source, clientName, service, createdAt, updatedAt) VALUES ('j', 'MANUAL', 'Dana', 'House wash', 1, 2)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m5.db", 5, true, MIGRATION_4_5)
+        db.query("SELECT clientName, service, updatedAt, template FROM jobs WHERE id = 'j'").use { c ->
+            assertThat(c.moveToFirst()).isTrue()
+            assertThat(c.getString(0)).isEqualTo("Dana")
+            assertThat(c.getString(1)).isEqualTo("House wash")
+            assertThat(c.getLong(2)).isEqualTo(2)
+            assertThat(c.isNull(3)).isTrue()
+        }
+        db.execSQL("UPDATE jobs SET template = 'report' WHERE id = 'j'")
+        db.query("SELECT template FROM jobs").use { c -> c.moveToFirst(); assertThat(c.getString(0)).isEqualTo("report") }
     }
 }

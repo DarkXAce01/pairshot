@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.greasepencil.pairshot.domain.Trade
+import com.greasepencil.pairshot.domain.gallery.BrandLook
+import com.greasepencil.pairshot.domain.gallery.ClientTemplate
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -52,6 +54,10 @@ data class AppSettings(
     /** Not stored here: filled in from the account's plan (CloudSession) where it matters. */
     val isPro: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** The business's page colour, upper-case #RRGGBB; null until they pick one (the page keeps its own red). */
+    val accent: String? = null,
+    /** The client page style used unless a job picks its own. */
+    val clientTemplate: ClientTemplate = ClientTemplate.CLASSIC,
 ) {
     companion object {
         const val DEFAULT_TEMPLATE = "Hi {first_name}, here's your {service} before & after: {link}"
@@ -77,6 +83,8 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val booking = stringPreferencesKey("booking_url")
         val wifiOnly = booleanPreferencesKey("wifi_only")
         val themeMode = stringPreferencesKey("theme_mode")
+        val accent = stringPreferencesKey("accent")
+        val clientTemplate = stringPreferencesKey("client_template")
     }
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -92,12 +100,21 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
             bookingUrl = p[Keys.booking] ?: "",
             wifiOnly = p[Keys.wifiOnly] ?: false,
             themeMode = ThemeMode.fromStored(p[Keys.themeMode]),
+            accent = BrandLook.normalise(p[Keys.accent]),
+            clientTemplate = ClientTemplate.fromId(p[Keys.clientTemplate]) ?: ClientTemplate.CLASSIC,
         )
     }
 
-    suspend fun finishOnboarding(businessName: String, trade: Trade) = context.dataStore.edit {
+    suspend fun finishOnboarding(
+        businessName: String,
+        trade: Trade,
+        accent: String? = null,
+        template: ClientTemplate = ClientTemplate.CLASSIC,
+    ) = context.dataStore.edit {
         it[Keys.businessName] = businessName.trim()
         it[Keys.trade] = trade.name
+        BrandLook.normalise(accent)?.let { a -> it[Keys.accent] = a }
+        it[Keys.clientTemplate] = template.id
         it[Keys.onboarded] = true
     }
 
@@ -113,4 +130,11 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     suspend fun setBookingUrl(v: String) = context.dataStore.edit { it[Keys.booking] = v.trim() }
     suspend fun setWifiOnly(v: Boolean) = context.dataStore.edit { it[Keys.wifiOnly] = v }
     suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit { it[Keys.themeMode] = mode.name }
+
+    /** null (or anything that isn't a colour) goes back to the page's own colour. */
+    suspend fun setAccent(hex: String?) = context.dataStore.edit {
+        val n = BrandLook.normalise(hex)
+        if (n == null) it.remove(Keys.accent) else it[Keys.accent] = n
+    }
+    suspend fun setClientTemplate(t: ClientTemplate) = context.dataStore.edit { it[Keys.clientTemplate] = t.id }
 }

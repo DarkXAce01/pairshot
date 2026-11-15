@@ -3,6 +3,7 @@ package com.greasepencil.pairshot.domain
 import com.google.common.truth.Truth.assertThat
 import com.greasepencil.pairshot.data.db.JobEntity
 import com.greasepencil.pairshot.domain.gallery.BusinessInfo
+import com.greasepencil.pairshot.domain.gallery.ClientTemplate
 import com.greasepencil.pairshot.domain.gallery.GalleryBuilder
 import com.greasepencil.pairshot.domain.gallery.GalleryManifest
 import org.junit.Test
@@ -99,5 +100,38 @@ class GalleryBuilderTest {
     @Test fun `street keeps the first line only`() {
         assertThat(GalleryBuilder.street("12 Oak St, Springfield")).isEqualTo("12 Oak St")
         assertThat(GalleryBuilder.street("Unit 4")).isEqualTo("Unit 4")
+    }
+
+    // ---- Page styles ----
+
+    /** What the app sent before page styles existed, for this job. It must never change. */
+    private val beforeStyles =
+        """{"business":{"name":"Shine Bros","phone":"555 0100","reviewUrl":"https://g.page/r/shine"},"job":{"title":"House wash","place":"12 Oak St","date":"12 November 2026"},"cover":{"id":"a","before":{"src":"/p/0/b-a.jpg","w":3000,"h":4000},"after":{"src":"/p/0/af-a.jpg","w":3000,"h":4000}},"sections":[{"label":"Patio","pairs":[{"id":"b","label":"Patio","before":{"src":"/p/0/b-b.jpg","w":3000,"h":4000},"after":{"src":"/p/0/af-b.jpg","w":3000,"h":4000}}]}],"badge":true}"""
+
+    @Test fun `classic with no colour is byte for byte what was sent before styles existed`() {
+        val rows = listOf(pairRow("a", 1, hasAfter = true), pairRow("b", 2, hasAfter = true, area = "Patio", areaPosition = 0))
+        val json = build(rows).toJson()
+        assertThat(json).isEqualTo(beforeStyles)
+        val explicit = GalleryBuilder.build(job, rows, biz.copy(accent = null), { f, r -> "/p/$r/$f" }, zone, Locale.UK, ClientTemplate.CLASSIC)
+        assertThat(explicit.toJson()).isEqualTo(beforeStyles)
+        assertThat(json).doesNotContain("template")
+        assertThat(json).doesNotContain("accent")
+    }
+
+    @Test fun `another style and a colour travel in the manifest, the colour upper-cased`() {
+        val rows = listOf(pairRow("a", 1, hasAfter = true))
+        val m = GalleryBuilder.build(job, rows, biz.copy(accent = "#1e3a5f"), { f, r -> "/p/$r/$f" }, zone, Locale.UK, ClientTemplate.REPORT)
+        assertThat(m.template).isEqualTo("report")
+        assertThat(m.business.accent).isEqualTo("#1E3A5F")
+        assertThat(m.toJson()).contains("\"template\":\"report\"")
+        val bad = GalleryBuilder.build(job, rows, biz.copy(accent = "red"), { f, r -> "/p/$r/$f" }, zone, Locale.UK, ClientTemplate.SHOWROOM)
+        assertThat(bad.business.accent).isNull()
+        assertThat(bad.template).isEqualTo("showroom")
+    }
+
+    @Test fun `a job's own style wins over the business default`() {
+        assertThat(GalleryBuilder.templateFor(job, ClientTemplate.BRIGHT)).isEqualTo(ClientTemplate.BRIGHT)
+        assertThat(GalleryBuilder.templateFor(job.copy(template = "report"), ClientTemplate.BRIGHT)).isEqualTo(ClientTemplate.REPORT)
+        assertThat(GalleryBuilder.templateFor(job.copy(template = "nonsense"), ClientTemplate.SHOWROOM)).isEqualTo(ClientTemplate.SHOWROOM)
     }
 }

@@ -43,19 +43,33 @@ private fun setOrNot(v: String) = if (v.isBlank()) "Not set" else "Set"
 
 /** Brand: what clients see. Business identity, the buttons on their page, and the message. */
 @Composable
-fun BrandScreen(onMessage: () -> Unit, vm: BrandViewModel = hiltViewModel()) {
+fun BrandScreen(onMessage: () -> Unit, onSeePro: () -> Unit = {}, vm: BrandViewModel = hiltViewModel()) {
     val loaded by vm.settings.collectAsStateWithLifecycle()
+    val pair by vm.coverPair.collectAsStateWithLifecycle()
+    val isPro by vm.isPro.collectAsStateWithLifecycle()
     var editing by rememberSaveable { mutableStateOf<BrandField?>(null) }
     PsScaffold {
         val s = loaded ?: return@PsScaffold
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             PsTabHeader("Brand", eyebrow = "What your client sees")
+            BrandHero(s.clientTemplate, s.accent, s.businessName, pair)
 
-            PsSectionHeader("Business", Modifier.padding(top = 12.dp))
+            PsSectionHeader("Business", Modifier.padding(top = Ps.space.sectionGap))
             PsListBlock {
                 row { PsListRow("Name", value = s.businessName.ifBlank { "Not set" }, onClick = { editing = BrandField.NAME }) }
                 row { PsListRow("Trade", value = s.trade.label, onClick = { editing = BrandField.TRADE }) }
             }
+
+            LookSection(
+                accent = s.accent,
+                template = s.clientTemplate,
+                businessName = s.businessName,
+                pair = pair,
+                isPro = isPro,
+                onAccent = vm::setAccent,
+                onTemplate = vm::setClientTemplate,
+                onSeePro = onSeePro,
+            )
 
             PsSectionHeader("On the page", Modifier.padding(top = Ps.space.sectionGap))
             PsListBlock {

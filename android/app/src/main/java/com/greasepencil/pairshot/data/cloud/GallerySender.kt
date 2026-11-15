@@ -163,7 +163,12 @@ class GallerySender @Inject constructor(
 
     companion object {
         fun build(job: JobEntity, pairs: List<PairRow>, s: AppSettings, pro: Boolean, src: (String, Int) -> String) =
-            GalleryBuilder.build(job, pairs, BusinessInfo(s.businessName, s.businessPhone, s.reviewUrl, s.bookingUrl, pro), imageUrl = src)
+            GalleryBuilder.build(
+                job, pairs,
+                BusinessInfo(s.businessName, s.businessPhone, s.reviewUrl, s.bookingUrl, pro, accent = s.accent),
+                imageUrl = src,
+                template = GalleryBuilder.templateFor(job, s.clientTemplate),
+            )
 
         fun fingerprint(job: JobEntity, pairs: List<PairRow>, s: AppSettings, pro: Boolean): String =
             sha256Hex(build(job, pairs, s, pro) { file, rot -> "$file|$rot" }.toJson().encodeToByteArray())
