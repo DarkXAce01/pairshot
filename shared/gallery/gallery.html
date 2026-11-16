@@ -86,6 +86,13 @@
   .media { position: relative; }
   .cap { margin: 8px 2px 0; color: var(--muted); font-size: 14px; }
   html[data-edge] .btn.primary { border-color: var(--ink); }
+  html[data-edge] .ba:focus-within,
+  html[data-edge] .expand:focus-visible,
+  html[data-edge] .mode button:focus-visible { outline-color: var(--ink); }
+  /* The viewer is always near-black, so its focus ring is always white (ink or a dark accent would vanish). */
+  .viewer button:focus-visible { outline-color: #fff; }
+  html[data-edge][data-template="report"] header.top { border-bottom-color: var(--ink); }
+  html[data-edge][data-template="bright"] body { border-top-color: var(--ink); }
 
   /* Page styles. Classic is the rules above; each style below only changes what it needs. */
   html[data-template="showroom"] {
@@ -364,7 +371,7 @@
     app.appendChild(el("h1", { text: job.title || "Your job" }));
     var count = (data.cover ? 1 : 0) + (data.sections || []).reduce(function (n, s) { return n + ((s && s.pairs) ? s.pairs.length : 0); }, 0);
     var facts = el("dl", { "class": "facts" });
-    [["Service", job.title], ["Location", job.place], ["Date", job.date], ["Photos", String(count * 2)]].forEach(function (f) {
+    [["Location", job.place], ["Date", job.date], ["Photos", String(count * 2)]].forEach(function (f) {
       if (f[1]) { facts.appendChild(el("dt", { text: f[0] })); facts.appendChild(el("dd", { text: f[1] })); }
     });
     app.appendChild(facts);

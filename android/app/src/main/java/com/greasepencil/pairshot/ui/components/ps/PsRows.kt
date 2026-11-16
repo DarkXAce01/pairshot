@@ -6,7 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -22,6 +23,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CameraAlt
@@ -120,12 +123,14 @@ fun <T> LazyListScope.psListBlockItems(
 @Composable
 private fun PsListBlockSegment(first: Boolean, last: Boolean, content: @Composable () -> Unit) {
     val c = Ps.colors
-    val radius = 14.dp
-    val shape = RoundedCornerShape(
-        topStart = if (first) radius else 0.dp,
-        topEnd = if (first) radius else 0.dp,
-        bottomStart = if (last) radius else 0.dp,
-        bottomEnd = if (last) radius else 0.dp,
+    // The md radius, read from the token so the block follows the shape scale.
+    val md = Ps.shape.md as CornerBasedShape
+    val corner = md.topStart
+    val shape = md.copy(
+        topStart = if (first) corner else ZeroCornerSize,
+        topEnd = if (first) corner else ZeroCornerSize,
+        bottomStart = if (last) corner else ZeroCornerSize,
+        bottomEnd = if (last) corner else ZeroCornerSize,
     )
     val hairline = c.hairline
     val inset = Ps.space.gutter
@@ -138,7 +143,7 @@ private fun PsListBlockSegment(first: Boolean, last: Boolean, content: @Composab
             .drawWithContent {
                 drawContent()
                 val w = 1.dp.toPx()
-                val r = radius.toPx()
+                val r = corner.toPx(size, this)
                 // The block's outline, stretched past the edges this slice doesn't own and clipped,
                 // so neighbouring slices join into one bordered block.
                 val top = if (first) w / 2 else -r * 2
@@ -214,7 +219,10 @@ fun PsListRow(
             trailing()
         } else if (value != null) {
             Spacer(Modifier.width(12.dp))
-            Text(value, style = Ps.type.bodyS.tabular(), color = c.inkSoft, textAlign = TextAlign.End)
+            Text(
+                value, style = Ps.type.bodyS.tabular(), color = c.inkSoft, textAlign = TextAlign.End,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 180.dp),
+            )
         }
         if (onClick != null && showChevron) {
             Spacer(Modifier.width(4.dp))
@@ -284,7 +292,10 @@ fun PsValueRow(title: String, value: String, modifier: Modifier = Modifier) {
     ) {
         Text(title, style = Ps.type.rowTitle, color = c.ink, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(12.dp))
-        Text(value, style = Ps.type.mono, color = c.inkSoft, textAlign = TextAlign.End)
+        Text(
+            value, style = Ps.type.mono, color = c.inkSoft, textAlign = TextAlign.End,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 180.dp),
+        )
     }
 }
 
@@ -300,6 +311,7 @@ private fun PsSectionHeaderPreview() = PreviewPaper {
 private fun PsListBlockPreview() = PreviewPaper {
     PsListBlock {
         row { PsListRow("Camera", value = "Outline", onClick = {}) }
+        row { PsListRow("Name", value = "Sparkle & Shine Exterior Cleaning Co Ltd", onClick = {}) } // 40 characters
         row { PsListRow("Sign in", supporting = "Only needed to send links.", onClick = {}) }
         row {
             PsListRow(
@@ -310,6 +322,7 @@ private fun PsListBlockPreview() = PreviewPaper {
             )
         }
         row { PsValueRow("Version", "0.1.0") }
+        row { PsValueRow("Business", "Sparkle & Shine Exterior Cleaning Co Ltd") }
     }
 }
 

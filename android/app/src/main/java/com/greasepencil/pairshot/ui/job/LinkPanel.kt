@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -254,7 +255,14 @@ private fun Live(
         if (g.firstViewedAt != null) {
             PsLoopMark { PsStatusPill(JobStatus.SEEN) }
         } else {
-            PsStatusPill(JobStatus.SENT, Modifier.padding(end = 8.dp))
+            PsStatusPill(JobStatus.SENT)
+        }
+        var menu by remember { mutableStateOf(false) }
+        Box {
+            PsIconButton(Icons.Outlined.MoreVert, "Link options", { menu = true })
+            PsMenu(menu, { menu = false }) {
+                PsMenuItem("Close link…", { menu = false; onClose() }, icon = Icons.Outlined.LinkOff)
+            }
         }
     }
     Column(Modifier.padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -262,19 +270,26 @@ private fun Live(
         Text(seenLine(g, s.now), style = Ps.type.bodyS, color = c.inkSoft)
         if (s.changed) Text("You've changed things since sending.", style = Ps.type.caption, color = c.ink)
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val button = Modifier.weight(1f)
+    // Text / Share / Copy share the row; past font scale 1.5 they stack so no word breaks.
+    @Composable
+    fun Buttons(button: Modifier, fullWidth: Boolean) {
         if (clientPhone != null) {
-            PsButton("Text", onText, button, variant = PsButtonVariant.Secondary, height = 48.dp, compact = true)
+            PsButton("Text", onText, button, variant = PsButtonVariant.Secondary, height = 48.dp, compact = true, fullWidth = fullWidth)
         }
-        PsButton("Share", onShare, button, variant = PsButtonVariant.Secondary, height = 48.dp, compact = true)
-        PsButton("Copy", onCopy, button, variant = PsButtonVariant.Secondary, height = 48.dp, compact = true)
-        var menu by remember { mutableStateOf(false) }
-        Box {
-            PsIconButton(Icons.Outlined.MoreVert, "Link options", { menu = true })
-            PsMenu(menu, { menu = false }) {
-                PsMenuItem("Close link…", { menu = false; onClose() }, icon = Icons.Outlined.LinkOff)
-            }
+        PsButton("Share", onShare, button, variant = PsButtonVariant.Secondary, height = 48.dp, compact = true, fullWidth = fullWidth)
+        PsButton("Copy", onCopy, button, variant = PsButtonVariant.Secondary, height = 48.dp, compact = true, fullWidth = fullWidth)
+    }
+    if (LocalDensity.current.fontScale > 1.5f) {
+        Column(Modifier.padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Buttons(Modifier, fullWidth = true)
+        }
+    } else {
+        Row(
+            Modifier.padding(end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Buttons(Modifier.weight(1f), fullWidth = false)
         }
     }
 }

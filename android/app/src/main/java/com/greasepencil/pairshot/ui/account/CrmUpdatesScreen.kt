@@ -126,20 +126,29 @@ private fun HookRow(h: WebhookDto, busy: Boolean, onTest: () -> Unit, onRemove: 
 @Composable
 private fun AddHookSheet(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
     var url by rememberSaveable { mutableStateOf("") }
+    var tried by rememberSaveable { mutableStateOf(false) }
     val trimmed = url.trim()
     val invalid = trimmed.isNotEmpty() && !trimmed.startsWith("https://")
-    val ok = trimmed.isNotEmpty() && !invalid
+    // Don't scold while "https://" is still being typed: only once the text can't become it, or on Add.
+    val showError = invalid && (tried || trimmed.length >= 8)
+    val add: () -> Unit = {
+        if (invalid) {
+            tried = true
+        } else if (trimmed.isNotEmpty()) {
+            onAdd(trimmed)
+        }
+    }
     PsSheet("Add an address", onDismiss = onDismiss) {
         PsTextField(
             url, { url = it },
             label = "Webhook address",
             placeholder = "https://hooks.zapier.com/…",
             helper = "From Zapier's “Catch Hook” step, Make, or your CRM.",
-            error = if (invalid) "It has to start with https://" else null,
+            error = if (showError) "It has to start with https://" else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { if (ok) onAdd(trimmed) }),
+            keyboardActions = KeyboardActions(onDone = { add() }),
         )
         Spacer(Modifier.height(Ps.space.xl))
-        PsButton("Add", { onAdd(trimmed) }, enabled = ok, fullWidth = true)
+        PsButton("Add", add, enabled = trimmed.isNotEmpty(), fullWidth = true)
     }
 }

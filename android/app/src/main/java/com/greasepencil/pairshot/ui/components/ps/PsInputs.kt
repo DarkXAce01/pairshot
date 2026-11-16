@@ -439,7 +439,8 @@ fun PsSlider(
 // ---------- Swatch ----------
 
 /**
- * A colour to pick: a 40 dp circle in a 48 dp target; chosen shows a 2 dp ink ring 3 dp out.
+ * A colour to pick: a 36 dp circle in a 48 dp target; chosen shows a 2 dp ink ring 3 dp out, which
+ * ends 23 dp from the centre, inside the target, so neighbours never clip it.
  * [label] is the colour's spoken name.
  */
 @Composable
@@ -460,7 +461,7 @@ fun PsSwatch(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(48.dp)) {
-            val r = 20.dp.toPx()
+            val r = 18.dp.toPx()
             drawCircle(colour, radius = r)
             // A hairline edge so pale colours still show on paper.
             drawCircle(c.hairline, radius = r - 0.5.dp.toPx(), style = Stroke(1.dp.toPx()))
@@ -471,6 +472,17 @@ fun PsSwatch(
         }
         content?.invoke()
     }
+}
+
+/** A wrapping row of [PsSwatch]es, 4 dp apart both ways, read as one choice. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun PsSwatchRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    FlowRow(
+        modifier.selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) { content() }
 }
 
 @PsPreviews

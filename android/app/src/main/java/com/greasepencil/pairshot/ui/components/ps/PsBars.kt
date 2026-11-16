@@ -75,14 +75,17 @@ fun PsTopBar(
             if (eyebrow != null) {
                 Text(eyebrow.uppercase(), style = Ps.type.eyebrow, color = c.inkFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(
-                title,
-                style = Ps.type.titleL,
-                color = c.ink,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
-            )
+            // An empty title is a spacer only: no empty heading for TalkBack to land on.
+            if (title.isNotEmpty()) {
+                Text(
+                    title,
+                    style = Ps.type.titleL,
+                    color = c.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
     }

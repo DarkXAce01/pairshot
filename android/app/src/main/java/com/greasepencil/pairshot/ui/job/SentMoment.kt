@@ -80,7 +80,7 @@ fun SentMoment(moment: Moment, onDone: () -> Unit) {
             Spacer(Modifier.height(Ps.space.xl))
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.graphicsLayer { alpha = word.value; translationY = (1f - word.value) * 24f },
+                modifier = Modifier.graphicsLayer { alpha = word.value; translationY = (1f - word.value) * 24.dp.toPx() },
             ) {
                 Text("Sent.", style = Ps.type.display, color = c.ink)
                 Spacer(Modifier.height(8.dp))

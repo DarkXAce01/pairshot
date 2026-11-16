@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -92,10 +94,13 @@ fun ShareImageSheet(
         styles.associateWith { s -> CollageExporter.planOf(pair, s, look, THUMB_EDGE).let { it.width.toFloat() / it.height } }
     }
 
+    // At most 40 % of the window, so the Share button stays above the fold on small phones.
+    val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    val previewHeight = minOf(320.dp, windowHeight * 0.4f).takeIf { it > 0.dp } ?: 320.dp
     PsSheet("Share as one image", onDismiss = onDismiss) {
-        Box(Modifier.fillMaxWidth().height(320.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(previewHeight), contentAlignment = Alignment.Center) {
             Crossfade(selected, animationSpec = tween(Ps.motion.standard), label = "sharePreview") { style ->
-                Box(Modifier.fillMaxWidth().height(320.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().height(previewHeight), contentAlignment = Alignment.Center) {
                     Render(
                         previews[style],
                         aspects.getValue(style),

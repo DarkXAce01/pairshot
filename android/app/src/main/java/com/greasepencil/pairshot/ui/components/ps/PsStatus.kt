@@ -61,14 +61,17 @@ fun PsStatusPill(status: JobStatus, modifier: Modifier = Modifier) {
     Pill(status.label, fill, text, border, "Status: ${status.label}", modifier)
 }
 
-/** The plan: "Free" outlined, "Pro" in ink. */
+/**
+ * The plan: "Free" outlined, "Pro" in ink. [spoken] replaces what TalkBack says ("Plan: Pro"), for
+ * when the pill marks something else, such as a feature that needs Pro.
+ */
 @Composable
-fun PsPlanPill(pro: Boolean, modifier: Modifier = Modifier) {
+fun PsPlanPill(pro: Boolean, modifier: Modifier = Modifier, spoken: String? = null) {
     val c = Ps.colors
     if (pro) {
-        Pill("Pro", c.ink, c.onInk, null, "Plan: Pro", modifier)
+        Pill("Pro", c.ink, c.onInk, null, spoken ?: "Plan: Pro", modifier)
     } else {
-        Pill("Free", Color.Transparent, c.inkSoft, c.outline, "Plan: Free", modifier)
+        Pill("Free", Color.Transparent, c.inkSoft, c.outline, spoken ?: "Plan: Free", modifier)
     }
 }
 

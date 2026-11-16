@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +49,7 @@ import com.greasepencil.pairshot.ui.components.ps.PsSectionHeader
 import com.greasepencil.pairshot.ui.components.ps.PsSelectableFrame
 import com.greasepencil.pairshot.ui.components.ps.PsSheet
 import com.greasepencil.pairshot.ui.components.ps.PsSwatch
+import com.greasepencil.pairshot.ui.components.ps.PsSwatchRow
 import com.greasepencil.pairshot.ui.components.ps.PsTemplateThumb
 import com.greasepencil.pairshot.ui.components.ps.PsTextField
 import com.greasepencil.pairshot.ui.theme.Ps
@@ -104,10 +104,7 @@ fun LookSection(
 
     PsSectionHeader("Look", Modifier.padding(top = Ps.space.sectionGap))
     Text("Colour", gutter.semantics { heading() }, style = Ps.type.rowTitle, color = Ps.colors.ink)
-    FlowRow(
-        gutter.padding(top = 4.dp).fillMaxWidth().selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
+    PsSwatchRow(gutter.padding(top = 4.dp).fillMaxWidth()) {
         BrandLook.colours.forEach { col ->
             val selected = named == col
             PsSwatch(

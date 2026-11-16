@@ -92,9 +92,9 @@ fun ProScreen(vm: CloudViewModel, onBack: () -> Unit) {
         },
     ) {
         val gutter = Modifier.padding(horizontal = Ps.space.gutter)
-        Text("PAIRSHOT PRO", gutter, style = Ps.type.eyebrow, color = Ps.colors.inkSoft)
+        Text("PAIRSHOT PRO", gutter.semantics { heading() }, style = Ps.type.eyebrow, color = Ps.colors.inkSoft)
         if (pro) {
-            Row(gutter.padding(top = 4.dp).semantics(mergeDescendants = true) { heading() }, verticalAlignment = Alignment.CenterVertically) {
+            Row(gutter.padding(top = 4.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
                 PsLoopMark { Text("Pro", style = Ps.type.display, color = Ps.colors.ink) }
                 Text(" is on.", style = Ps.type.display, color = Ps.colors.ink)
             }
@@ -105,7 +105,7 @@ fun ProScreen(vm: CloudViewModel, onBack: () -> Unit) {
                 color = Ps.colors.inkSoft,
             )
         } else {
-            Text("Pay once.\nKeep it.", gutter.padding(top = 8.dp).semantics { heading() }, style = Ps.type.display, color = Ps.colors.ink)
+            Text("Pay once.\nKeep it.", gutter.padding(top = 8.dp), style = Ps.type.display, color = Ps.colors.ink)
             Text(
                 "No subscription. No ads on either plan.",
                 gutter.padding(top = 12.dp),
@@ -114,7 +114,7 @@ fun ProScreen(vm: CloudViewModel, onBack: () -> Unit) {
             )
         }
 
-        PsListBlock(Modifier.padding(top = 24.dp)) {
+        PsListBlock(Modifier.padding(top = Ps.space.sectionGap)) {
             row { PlanRow("", "FREE", "PRO", head = true, dimFree = pro) }
             planRows.forEach { (feature, free, p) -> row { PlanRow(feature, free, p, dimFree = pro) } }
         }

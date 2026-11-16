@@ -78,36 +78,92 @@ object CollageExporter {
         drawTag(canvas, fonts, plan.after, plan.labelHeight, "AFTER", alignEnd = split != null)
 
         // Words.
-        val name = frame.nameText(look.businessName, pair.areaName)
+        val words = wordsOf(fonts, frame, plan, frame.nameText(look.businessName, pair.areaName), look.watermark)
+        words.mark?.let { m -> canvas.drawText(m.text, m.left, baselineIn(footerText, m.paint), m.paint) }
+        words.name?.let { n -> canvas.drawText(n.text, n.left, baselineIn(if (n.inHeader) headerRect else footerText, n.paint), n.paint) }
+        return out
+    }
+
+    /** One line of words on the image: what is drawn, with which paint, and where it ends up. */
+    internal class Line(val text: String, val paint: Paint, val left: Float, val right: Float, val inHeader: Boolean)
+
+    /** Where the business name and the free mark go. */
+    internal class Words(val name: Line?, val mark: Line?, val pad: Float)
+
+    /** The words of [pair] in [style] and [look], laid out as [render] draws them (for tests). */
+    internal fun wordsOf(context: Context, pair: PairRow, style: CollageLayout.Style, look: Look, longEdge: Int): Words =
+        wordsOf(Fonts(context), look.frame, planOf(pair, style, look, longEdge), look.frame.nameText(look.businessName, pair.areaName), look.watermark)
+
+    /**
+     * The name has priority over the mark: the mark is capped at 38 % of the band width and shrinks
+     * first; the name is only ellipsised once the mark is at its floor and the name is at its minimum.
+     */
+    private fun wordsOf(fonts: Fonts, frame: CollageFrame, plan: CollageLayout.Plan, name: String, watermark: Boolean): Words {
         val band = maxOf(plan.headerHeight, plan.footerHeight).coerceAtLeast(1)
         val pad = band * 0.4f
-        var markWidth = 0f
-        if (look.watermark && plan.footerHeight > 0) {
-            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor(frame.markColour); typeface = fonts.mono; textSize = plan.footerHeight * 0.26f
-                textAlign = Paint.Align.RIGHT; letterSpacing = 0.1f
+        val width = plan.width.toFloat()
+        val markPaint = if (watermark && plan.footerHeight > 0) {
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor(frame.markColour); typeface = fonts.mono; letterSpacing = 0.1f
+                isSubpixelText = true; isLinearText = true
+                textSize = plan.footerHeight * 0.26f
+                val cap = width * 0.38f
+                if (inkWidth(MARK, this) > cap) textSize = maxOf(plan.footerHeight * 0.16f, textSize * cap / inkWidth(MARK, this))
             }
-            canvas.drawText(MARK, plan.width - pad, baselineIn(footerText, p), p)
-            markWidth = p.measureText(MARK) + pad
-        }
+        } else null
+        val markFloor = plan.footerHeight * 0.16f
+        var nameLine: Line? = null
         if (name.isNotEmpty()) {
             val inHeader = plan.headerHeight > 0
-            val rect = if (inHeader) headerRect else footerText
+            val shared = !inHeader && markPaint != null
             val bandH = if (inHeader) plan.headerHeight else plan.footerHeight
-            val p = namePaint(frame, fonts)
+            val p = namePaint(frame, fonts).apply { isSubpixelText = true; isLinearText = true }
             val preferred = bandH * when (frame.nameFont) {
                 CollageFrame.NameFont.SERIF -> 0.55f
                 CollageFrame.NameFont.SANS_CAPS -> 0.34f
                 CollageFrame.NameFont.MONO_CAPS -> 0.3f
             }
-            val maxWidth = plan.width - pad * 2 - if (inHeader) 0f else markWidth
-            p.textSize = 1f
-            val size = CollageFrame.fitSize(p.measureText(name), maxWidth, preferred, preferred * 0.55f)
-            p.textSize = size ?: (preferred * 0.55f)
-            val text = if (size == null) ellipsize(name, p, maxWidth) else name
-            canvas.drawText(text, pad, baselineIn(rect, p), p)
+            val min = preferred * 0.55f
+            p.textSize = 100f
+            val widthAtOne = inkWidth(name, p) / 100f
+            fun maxWidth() = width - pad * 2 - if (shared) inkWidth(MARK, markPaint!!) + pad else 0f
+            // Glyph widths do not scale exactly with size, so re-measure at the chosen size and
+            // step down until it really fits (or reaches the minimum).
+            fun fits(): Boolean {
+                val limit = maxWidth()
+                var size = CollageFrame.fitSize(widthAtOne, limit, preferred, min) ?: return false
+                repeat(4) {
+                    p.textSize = size
+                    val w = inkWidth(name, p)
+                    if (w <= limit) return true
+                    size *= limit / w * 0.995f
+                    if (size < min) return false
+                }
+                return false
+            }
+            var fit = fits()
+            if (!fit && shared && markPaint!!.textSize > markFloor) {
+                markPaint.textSize = markFloor
+                fit = fits()
+            }
+            if (!fit) p.textSize = min
+            val limit = maxWidth()
+            val text = if (inkWidth(name, p) > limit) ellipsize(name, p, limit) else name
+            nameLine = Line(text, p, pad, pad + inkWidth(text, p), inHeader)
         }
-        return out
+        val markLine = markPaint?.let {
+            it.textAlign = Paint.Align.LEFT
+            val w = inkWidth(MARK, it)
+            Line(MARK, it, width - pad - w, width - pad, inHeader = false)
+        }
+        return Words(nameLine, markLine, pad)
+    }
+
+    /** The wider of the advance and the drawn ink, so a glyph's overhang is never left out. */
+    private fun inkWidth(text: String, p: Paint): Float {
+        val bounds = Rect()
+        p.getTextBounds(text, 0, text.length, bounds)
+        return maxOf(p.measureText(text), bounds.right.toFloat())
     }
 
     /**
@@ -168,7 +224,7 @@ object CollageExporter {
 
     private fun ellipsize(text: String, p: Paint, maxWidth: Float): String {
         var end = text.length
-        while (end > 1 && p.measureText(text.substring(0, end).trimEnd() + "…") > maxWidth) end--
+        while (end > 1 && inkWidth(text.substring(0, end).trimEnd() + "…", p) > maxWidth) end--
         return text.substring(0, end).trimEnd() + "…"
     }
 

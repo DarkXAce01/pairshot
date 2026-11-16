@@ -104,7 +104,7 @@ fun AccountScreen(vm: CloudViewModel, onBack: () -> Unit, onSeePro: () -> Unit) 
             )
         }
 
-        PsSectionHeader("This month", Modifier.padding(top = 24.dp))
+        PsSectionHeader("This month", Modifier.padding(top = Ps.space.sectionGap))
         when {
             u != null -> UsageBlock(u)
             x.busy || !tried -> Box(
@@ -117,7 +117,7 @@ fun AccountScreen(vm: CloudViewModel, onBack: () -> Unit, onSeePro: () -> Unit) 
             }
         }
 
-        PsListBlock(Modifier.padding(top = 24.dp)) {
+        PsListBlock(Modifier.padding(top = Ps.space.sectionGap)) {
             row {
                 PsListRow("Sign out", showChevron = false, enabled = !x.busy, onClick = {
                     confirm = Confirm(
@@ -128,7 +128,7 @@ fun AccountScreen(vm: CloudViewModel, onBack: () -> Unit, onSeePro: () -> Unit) 
                 })
             }
         }
-        PsListBlock(Modifier.padding(top = 16.dp)) {
+        PsListBlock(Modifier.padding(top = Ps.space.sectionGap)) {
             row {
                 PsListRow(
                     "Delete cloud data…",

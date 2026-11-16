@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -161,7 +162,9 @@ fun PsAvatar(letter: String, modifier: Modifier = Modifier) {
         modifier.size(44.dp).clip(Ps.shape.pill).background(c.sunken).clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
-        Text(letter.take(1).uppercase(), style = Ps.type.titleM, color = c.ink)
+        // A fixed, dp-derived size: the avatar is decorative and must not overflow at font scale 2.0.
+        val size = with(LocalDensity.current) { 20.dp.toSp() }
+        Text(letter.take(1).uppercase(), style = Ps.type.titleM.copy(fontSize = size, lineHeight = size), color = c.ink)
     }
 }
 

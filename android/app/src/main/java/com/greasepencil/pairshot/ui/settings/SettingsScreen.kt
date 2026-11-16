@@ -13,8 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,7 +81,7 @@ fun SettingsScreen(nav: SettingsNav, vm: SettingsViewModel = hiltViewModel()) {
                 row {
                     PsListRow(
                         "Connections",
-                        trailing = if (!pro) ({ PsPlanPill(pro = true) }) else null,
+                        trailing = if (!pro) ({ PsPlanPill(pro = true, spoken = "Needs Pro") }) else null,
                         onClick = nav.onConnections,
                     )
                 }
@@ -94,7 +92,7 @@ fun SettingsScreen(nav: SettingsNav, vm: SettingsViewModel = hiltViewModel()) {
                 row {
                     // Title above the control, so neither is squeezed at large font sizes.
                     Column(Modifier.fillMaxWidth().padding(horizontal = Ps.space.gutter, vertical = 12.dp)) {
-                        Text("Appearance", Modifier.semantics { heading() }, style = Ps.type.rowTitle, color = Ps.colors.ink)
+                        Text("Appearance", style = Ps.type.rowTitle, color = Ps.colors.ink)
                         Spacer(Modifier.height(8.dp))
                         PsSegmented(
                             ThemeMode.entries.map { it.label },

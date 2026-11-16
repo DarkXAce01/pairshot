@@ -34,6 +34,9 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
+import com.greasepencil.pairshot.ui.theme.AlwaysDark
 import com.greasepencil.pairshot.domain.Crop
 import com.greasepencil.pairshot.ui.components.PhotoImage
 import com.greasepencil.pairshot.ui.components.ps.PsButton
@@ -80,39 +83,41 @@ fun CropEditor(
     var crop by remember { mutableStateOf(initial) }
     var shape by remember { mutableStateOf<Float?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier.fillMaxSize().background(PsCameraColors.background).systemBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Crop", style = Ps.type.titleM, color = PsCameraColors.ink, modifier = Modifier.semantics { heading() })
-                Text(
-                    "The after gets the same crop, so the pair still lines up.",
-                    style = Ps.type.caption,
-                    color = PsCameraColors.muted,
-                )
-            }
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                val fitsWidth = maxWidth / maxHeight < photoAspect
-                val w = if (fitsWidth) maxWidth else maxHeight * photoAspect
-                Box(Modifier.size(w, w / photoAspect)) {
-                    PhotoImage(file, rotation, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-                    CropBox(crop, lockAspect = shape?.let { it / photoAspect }) { crop = it }
-                }
-            }
-            PsChipRow {
-                shapes.forEach { s ->
-                    PsChip(
-                        s.label,
-                        selected = shape == s.aspect && (s.aspect != null || crop.isFull),
-                        onClick = { shape = s.aspect; crop = centredCrop(s.aspect, photoAspect) },
-                        onDark = true,
+        AlwaysDark((LocalView.current.parent as? DialogWindowProvider)?.window) {
+            Column(
+                Modifier.fillMaxSize().background(PsCameraColors.background).systemBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Crop", style = Ps.type.titleM, color = PsCameraColors.ink, modifier = Modifier.semantics { heading() })
+                    Text(
+                        "The after gets the same crop, so the pair still lines up.",
+                        style = Ps.type.caption,
+                        color = PsCameraColors.muted,
                     )
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PsButton("Cancel", onDismiss, Modifier.weight(1f), variant = PsButtonVariant.Secondary, onDark = true)
-                PsButton("Save crop", { onSave(crop.clamped()) }, Modifier.weight(1f), onDark = true)
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    val fitsWidth = maxWidth / maxHeight < photoAspect
+                    val w = if (fitsWidth) maxWidth else maxHeight * photoAspect
+                    Box(Modifier.size(w, w / photoAspect)) {
+                        PhotoImage(file, rotation, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+                        CropBox(crop, lockAspect = shape?.let { it / photoAspect }) { crop = it }
+                    }
+                }
+                PsChipRow {
+                    shapes.forEach { s ->
+                        PsChip(
+                            s.label,
+                            selected = shape == s.aspect && (s.aspect != null || crop.isFull),
+                            onClick = { shape = s.aspect; crop = centredCrop(s.aspect, photoAspect) },
+                            onDark = true,
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PsButton("Cancel", onDismiss, Modifier.weight(1f), variant = PsButtonVariant.Secondary, onDark = true)
+                    PsButton("Save crop", { onSave(crop.clamped()) }, Modifier.weight(1f), onDark = true)
+                }
             }
         }
     }

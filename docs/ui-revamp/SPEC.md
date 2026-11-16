@@ -430,7 +430,7 @@ Built in Work Package 1, before any screen (except `PsTemplateThumb`, which arri
 | `PsPairTile(pair, onClick)` | Two halves with 2 dp gap, radius `sm`; "Needs after" half is `sunken` with a dashed `outline` border and mono text; Cover star and Hidden eye as `PsTag`-style badges | From `JobScreen.PairTile` |
 | `PsLoopMark(content)` | Static `Modifier.circled()` in `pencil` round its content | Allowed uses only: onboarding wordmark, "Seen" in the link panel, "Pro" on the Pro page when owned |
 | `PsTemplateThumb(template, accent, businessName, …)` | Miniature of a client page template (section 8c) | Brand, onboarding, Preview style sheet |
-| `PsSwatch(colour, selected, label)` | 40 dp circle in 48 dp target; selected: 2 dp `ink` ring with 3 dp gap | Accent picker; label is spoken |
+| `PsSwatch(colour, selected, label)` | 36 dp circle in 48 dp target; selected: 2 dp `ink` ring with 3 dp gap (ends inside the target). Laid out in `PsSwatchRow` (wrapping, 4 dp gaps both ways) | Accent picker; label is spoken |
 | `PsSelectableFrame(selected) { … }` | Radius `md`; 1 dp `hairline` border, or 2 dp `ink` border plus a 22 dp `pencil` circle with a white check at top-right when selected | Template and collage thumbnails. `Role.RadioButton` |
 | `GoogleSignInButton` (kept, restyled) | Secondary-style button with the account icon, 56 dp | From `cloud/SignIn.kt` |
 | `Modifier.psPressable`, `rememberReducedMotion()` | — | Section 4.6 |

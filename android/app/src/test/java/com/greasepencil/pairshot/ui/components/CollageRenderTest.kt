@@ -7,6 +7,7 @@ import android.graphics.Color
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import com.greasepencil.pairshot.data.repo.PhotoFiles
 import com.greasepencil.pairshot.domain.CollageFrame
 import com.greasepencil.pairshot.domain.CollageLayout.Style
@@ -56,6 +57,24 @@ class CollageRenderTest {
             assertThat(plan.footerHeight).isGreaterThan(0)
             out?.let { dir -> File(dir, "${template.id}-${style.name.lowercase()}.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) } }
             bmp.recycle()
+        }
+    }
+
+    @Test fun `the long name never runs into the mark or off the canvas`() {
+        for (template in ClientTemplate.entries) for (style in Style.entries) {
+            val look = CollageExporter.Look(CollageFrame.of(template, BrandLook.BLUE.hex), longName, watermark = true)
+            val plan = CollageExporter.planOf(pair, style, look, 1024)
+            val words = CollageExporter.wordsOf(context, pair, style, look, 1024)
+            val name = requireNotNull(words.name) { "$template $style has no name" }
+            val mark = requireNotNull(words.mark) { "$template $style has no mark" }
+            val where = "${template.id}-${style.name.lowercase()}"
+            assertWithMessage("$where: name inside the canvas").that(name.right).isAtMost(plan.width - words.pad)
+            assertWithMessage("$where: mark inside the canvas").that(mark.right).isAtMost(plan.width - words.pad)
+            if (!name.inHeader) assertWithMessage("$where: name clear of the mark").that(name.right).isAtMost(mark.left)
+            // The name keeps priority: it is cut only when the mark is already at its floor.
+            if (name.text.endsWith("…") && !name.inHeader) {
+                assertWithMessage("$where: mark shrank first").that(mark.paint.textSize).isWithin(0.01f).of(plan.footerHeight * 0.16f)
+            }
         }
     }
 

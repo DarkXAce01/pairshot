@@ -1,7 +1,11 @@
 package com.greasepencil.pairshot.ui.onboarding
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +23,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -33,6 +35,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -61,6 +65,7 @@ import com.greasepencil.pairshot.ui.components.ps.PsChipRow
 import com.greasepencil.pairshot.ui.components.ps.PsLoopMark
 import com.greasepencil.pairshot.ui.components.ps.PsScaffold
 import com.greasepencil.pairshot.ui.components.ps.PsSwatch
+import com.greasepencil.pairshot.ui.components.ps.PsSwatchRow
 import com.greasepencil.pairshot.ui.components.ps.PsTemplateThumb
 import com.greasepencil.pairshot.ui.components.ps.PsTextField
 import com.greasepencil.pairshot.ui.components.ps.rememberReducedMotion
@@ -162,10 +167,14 @@ fun OnboardingScreen(onDone: () -> Unit, vm: OnboardingViewModel = hiltViewModel
                 StepDots(d.step, Modifier.weight(1f))
                 if (d.step == 2) PsButton("Skip", { finish(skip = true) }, variant = PsButtonVariant.Quiet, enabled = !saving)
             }
-            if (d.step == 1) {
-                StepOne(d, vm)
-            } else {
-                StepTwo(d, vm)
+            val stepMs = if (rememberReducedMotion()) 0 else Ps.motion.standard
+            AnimatedContent(
+                d.step,
+                Modifier.fillMaxSize(),
+                transitionSpec = { fadeIn(tween(stepMs)) togetherWith fadeOut(tween(stepMs)) },
+                label = "onboardingStep",
+            ) { step ->
+                if (step == 1) StepOne(d, vm) else StepTwo(d, vm)
             }
         }
     }
@@ -253,6 +262,9 @@ private fun StepOne(d: OnboardingDraft, vm: OnboardingViewModel) {
 @Composable
 private fun StepTwo(d: OnboardingDraft, vm: OnboardingViewModel) {
     val reduced = rememberReducedMotion()
+    // On short phones a smaller hero keeps both pickers above the fold.
+    val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    val heroWidth = if (windowHeight > 0.dp && windowHeight < 700.dp) 160.dp else 200.dp
     Column(
         Modifier
             .fillMaxSize()
@@ -273,13 +285,13 @@ private fun StepTwo(d: OnboardingDraft, vm: OnboardingViewModel) {
                 PsTemplateThumb(
                     template, accent, name,
                     modifier = Modifier.clip(Ps.shape.lg).border(1.dp, Ps.colors.hairline, Ps.shape.lg),
-                    width = 200.dp,
+                    width = heroWidth,
                     description = "Your client page: ${template.label}, ${BrandLook.named(accent)?.name ?: "your colour"}",
                 )
             }
         }
         Spacer(Modifier.height(Ps.space.lg))
-        FlowRow(Modifier.fillMaxWidth().selectableGroup()) {
+        PsSwatchRow(Modifier.fillMaxWidth()) {
             BrandLook.colours.forEach { col ->
                 PsSwatch(colourOf(col.hex), selected = d.accent == col.hex, label = col.name, onClick = { vm.setAccent(col.hex) })
             }

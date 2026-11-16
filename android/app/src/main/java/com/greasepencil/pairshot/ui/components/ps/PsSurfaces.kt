@@ -52,6 +52,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.greasepencil.pairshot.ui.theme.Ps
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 
 /**
  * Every bottom sheet: surface, 20 dp top corners, a hairline drag handle, serif title, 24 dp
@@ -130,10 +135,15 @@ private fun DialogPanel(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnClickOutside = dismissOnOutside, dismissOnBackPress = dismissOnOutside),
     ) {
+        // Our scrim strength, not the platform's default dim.
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        val dim = Ps.colors.scrim.alpha
+        SideEffect { window?.setDimAmount(dim) }
         DialogCard(title, buttons, content)
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DialogCard(title: String, buttons: @Composable () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val c = Ps.colors
@@ -143,6 +153,7 @@ private fun DialogCard(title: String, buttons: @Composable () -> Unit, content: 
             .fillMaxWidth()
             .clip(Ps.shape.lg)
             .background(c.surface)
+            .border(1.dp, c.hairline, Ps.shape.lg)
             .semantics { paneTitle = title }
             .padding(start = 24.dp, end = 12.dp, top = 24.dp, bottom = 8.dp),
     ) {
@@ -152,7 +163,8 @@ private fun DialogCard(title: String, buttons: @Composable () -> Unit, content: 
             content()
         }
         Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        // Wraps at large font sizes instead of squeezing the labels.
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, itemVerticalAlignment = Alignment.CenterVertically) {
             buttons()
         }
     }

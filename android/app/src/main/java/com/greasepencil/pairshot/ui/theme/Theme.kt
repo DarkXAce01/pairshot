@@ -1,5 +1,9 @@
 package com.greasepencil.pairshot.ui.theme
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.Window
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
@@ -9,6 +13,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
@@ -124,4 +131,35 @@ fun PairshotTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable ()
             content = content,
         )
     }
+}
+
+/**
+ * For always-dark screens (camera, crop editor): the dark token set inside, so focus rings and
+ * sheets read on the dark chrome, and light status/navigation bar icons on [window] (the
+ * activity's when null) until it leaves, whatever the app theme is.
+ */
+@Composable
+fun AlwaysDark(window: Window? = null, content: @Composable () -> Unit) {
+    val view = LocalView.current
+    val target = window ?: view.context.findActivity()?.window
+    if (target != null && !view.isInEditMode) {
+        DisposableEffect(target) {
+            val bars = WindowCompat.getInsetsController(target, view)
+            val status = bars.isAppearanceLightStatusBars
+            val nav = bars.isAppearanceLightNavigationBars
+            bars.isAppearanceLightStatusBars = false
+            bars.isAppearanceLightNavigationBars = false
+            onDispose {
+                bars.isAppearanceLightStatusBars = status
+                bars.isAppearanceLightNavigationBars = nav
+            }
+        }
+    }
+    PairshotTheme(dark = true, content = content)
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

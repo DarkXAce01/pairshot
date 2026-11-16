@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.greasepencil.pairshot.ui.components.ps.psPressable
+import com.greasepencil.pairshot.ui.components.ps.psSelectable
 import com.greasepencil.pairshot.ui.components.ps.psToggleable
 import com.greasepencil.pairshot.ui.theme.Ps
 
@@ -56,7 +57,7 @@ fun PairTools(
     modifier: Modifier = Modifier,
 ) {
     val c = Ps.colors
-    Row(modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(modifier.fillMaxWidth().padding(horizontal = Ps.space.gutter), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Tool(Icons.AutoMirrored.Outlined.Label, "Label", c.ink, Modifier.weight(1f).psPressable(onLabel, focusShape = Ps.shape.md))
         Tool(Icons.Outlined.Crop, PairToolText.crop(cropped), c.ink, Modifier.weight(1f).psPressable(onCrop, focusShape = Ps.shape.md))
         Tool(
@@ -65,7 +66,7 @@ fun PairTools(
             if (cover) c.ink else c.inkSoft,
             Modifier
                 .weight(1f)
-                .psToggleable(cover, { onCover() }, Role.Switch, focusShape = Ps.shape.md)
+                .psSelectable(selected = cover, onClick = onCover, role = Role.RadioButton, focusShape = Ps.shape.md)
                 .semantics { stateDescription = PairToolText.coverState(cover) },
         )
         Tool(

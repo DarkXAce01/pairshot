@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.greasepencil.pairshot.ui.theme.AlwaysDark
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.greasepencil.pairshot.data.prefs.GhostMode
@@ -119,7 +120,7 @@ private val Ink = PsCameraColors.ink
 private val Muted = PsCameraColors.muted
 
 @Composable
-fun CameraScreen(onClose: () -> Unit, vm: CameraViewModel = hiltViewModel()) {
+fun CameraScreen(onClose: () -> Unit, vm: CameraViewModel = hiltViewModel()) = AlwaysDark {
     val context = LocalContext.current
     var granted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)

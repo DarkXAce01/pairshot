@@ -125,12 +125,32 @@ test("an accent that vanishes into the page gets an edge", () => {
   assert.equal(navy.documentElement.hasAttribute("data-edge"), false);
 });
 
+test("with an edge, focus rings and the Report and Bright rules switch to ink", () => {
+  const yellow = render({ ...base, template: "report", business: { ...base.business, accent: "#F5E663" } }).doc;
+  assert.ok(yellow.documentElement.hasAttribute("data-edge"));
+  const css = yellow.querySelector("style").textContent;
+  for (const sel of [
+    "html[data-edge] .ba:focus-within",
+    "html[data-edge] .expand:focus-visible",
+    "html[data-edge] .mode button:focus-visible",
+    'html[data-edge][data-template="report"] header.top { border-bottom-color: var(--ink); }',
+    'html[data-edge][data-template="bright"] body { border-top-color: var(--ink); }',
+    ".viewer button:focus-visible { outline-color: #fff; }",
+  ]) assert.ok(css.includes(sel), sel);
+});
+
+test("Report does not repeat the job title in its facts", () => {
+  const report = render({ ...base, template: "report" }).doc;
+  const title = report.querySelector("h1").textContent;
+  assert.ok(![...report.querySelectorAll(".facts dd")].some((d) => d.textContent === title));
+});
+
 test("Report starts side by side with captions and a facts table; the others start on the slider", () => {
   const report = render({ ...base, template: "report" }).doc;
   assert.equal(report.querySelectorAll(".ba").length, 0);
   assert.equal(report.querySelectorAll(".sbs").length, 4);
-  assert.deepEqual([...report.querySelectorAll(".facts dt")].map((d) => d.textContent), ["Service", "Location", "Date", "Photos"]);
-  assert.equal(report.querySelectorAll(".facts dd")[3].textContent, "8");
+  assert.deepEqual([...report.querySelectorAll(".facts dt")].map((d) => d.textContent), ["Location", "Date", "Photos"]);
+  assert.equal(report.querySelectorAll(".facts dd")[2].textContent, "8");
   assert.deepEqual([...report.querySelectorAll(".cap")].map((c) => c.textContent), ["House wash", "Driveway", "Driveway"]);
   for (const t of ["classic", "showroom", "bright"]) assert.equal(render({ ...base, template: t }).doc.querySelectorAll(".ba").length, 4);
 });
