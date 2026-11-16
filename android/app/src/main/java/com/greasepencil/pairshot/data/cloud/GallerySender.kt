@@ -69,7 +69,7 @@ class GallerySender @Inject constructor(
             if (keys.isEmpty()) throw CloudException(0, "nothing_to_send", "Finish at least one before & after first.")
             val hashOf = HashMap<String, String>()
             for (key in keys) {
-                val bytes = readPhoto(key)
+                val bytes = readPhoto(key, pairs)
                 hashOf[key] = sha256Hex(bytes)
             }
             val manifest = build(job, pairs, s, pro) { file, rot -> hashOf.getValue("$file|$rot") }
@@ -84,7 +84,7 @@ class GallerySender @Inject constructor(
             val keyOf = hashOf.entries.associate { (k, h) -> h to k }
             for (hash in missing) {
                 val key = keyOf[hash] ?: continue
-                cloud.call { it.uploadPhoto(hash, readPhoto(key)) }
+                cloud.call { it.uploadPhoto(hash, readPhoto(key, pairs)) }
             }
             val dto = cloud.call { it.publish(queued.id, req) }
 
@@ -121,10 +121,13 @@ class GallerySender @Inject constructor(
         }
     }
 
-    private suspend fun readPhoto(key: String): ByteArray {
+    private suspend fun readPhoto(key: String, pairs: List<PairRow>): ByteArray {
         val file = key.substringBeforeLast('|')
         val rot = key.substringAfterLast('|').toInt()
-        return photos.prepared(file, rot) ?: throw CloudException(0, "photo_unreadable", "A photo on this job couldn't be read. Retake or hide it.")
+        return photos.prepared(file, rot) ?: run {
+            android.util.Log.w("Pairshot", "unreadable photo $file (exists=${photos.exists(file)})")
+            throw CloudException(0, "photo_unreadable", unreadableMessage(file, pairs))
+        }
     }
 
     suspend fun clearShareFlag(galleryId: String) {
@@ -173,6 +176,18 @@ class GallerySender @Inject constructor(
         fun fingerprint(job: JobEntity, pairs: List<PairRow>, s: AppSettings, pro: Boolean): String =
             sha256Hex(build(job, pairs, s, pro) { file, rot -> "$file|$rot" }.toJson().encodeToByteArray())
     }
+}
+
+/** Names the broken photo so the user knows which pair to fix: "The after in "Driveway" (pair 2) couldn't be read…". */
+internal fun unreadableMessage(file: String, pairs: List<PairRow>): String {
+    val shown = pairs.filter { !it.pair.hidden }
+    val i = shown.indexOfFirst { it.beforeFile == file || it.afterFile == file }
+    if (i < 0) return "A photo on this job couldn't be read. Retake or hide it."
+    val row = shown[i]
+    val side = if (row.beforeFile == file) "before" else "after"
+    val place = row.areaName?.let { "\"$it\"" } ?: "the unlabelled pairs"
+    val n = shown.filter { it.pair.areaId == row.pair.areaId }.indexOfFirst { it.pair.id == row.pair.id } + 1
+    return "The $side photo in $place (pair $n) couldn't be read. Open that pair and retake the $side, or hide the pair."
 }
 
 fun GalleryManifest.photoSrcs(): List<String> =

@@ -12,6 +12,8 @@ import javax.inject.Singleton
 /** The bytes of a photo as it leaves the phone: upright, resized, no EXIF. */
 interface PhotoSource {
     suspend fun prepared(fileName: String, rotation: Int): ByteArray?
+    /** Whether the original file is still on the phone (for diagnosing an unreadable photo). */
+    fun exists(fileName: String): Boolean = true
 }
 
 @Singleton
@@ -24,6 +26,8 @@ class PreparedPhotos @Inject constructor(@ApplicationContext private val context
         }
         null
     }
+
+    override fun exists(fileName: String): Boolean = com.greasepencil.pairshot.data.repo.PhotoFiles.file(context, fileName).let { it.exists() && it.length() > 0 }
 
     companion object { const val MAX_BYTES = 1_000_000L }
 }
