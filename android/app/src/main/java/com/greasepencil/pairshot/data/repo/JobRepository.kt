@@ -206,6 +206,27 @@ class JobRepository @Inject constructor(
         file.delete()
     }
 
+    /**
+     * Photo files that are gone while the database still lists them (an old backup restored onto a new
+     * install, or files removed outside the app). A pair without its before is removed; a pair without its
+     * after goes back to waiting for one. Returns how many pairs changed.
+     */
+    suspend fun repairMissingPhotos(): Int {
+        val missing = photos.all().filter { !files.file(it.fileName).let { f -> f.exists() && f.length() > 0 } }
+        if (missing.isEmpty()) return 0
+        val gone = missing.map { it.id }.toSet()
+        var changed = 0
+        db.withTransaction {
+            for (p in pairs.usingPhotos(gone.toList())) {
+                if (p.beforePhotoId in gone) pairs.delete(p.id) else pairs.update(p.copy(afterPhotoId = null))
+                changed++
+            }
+            gone.forEach { photos.delete(it) }
+        }
+        missing.map { it.jobId }.distinct().forEach { cleanOrphans(it) }
+        return changed
+    }
+
     private suspend fun cleanOrphans(jobId: String) {
         photos.orphans(jobId).forEach {
             photos.delete(it.id)

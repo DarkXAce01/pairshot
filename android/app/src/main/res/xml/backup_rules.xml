@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Photos are big; keep them out of Google's auto backup. Settings and the job list are backed up. -->
+<!-- Photos are big; keep them out of Google's auto backup. Settings and branding are backed up. -->
 <full-backup-content>
     <exclude domain="file" path="photos/" />
+    <!-- Jobs point at photos, so they only make sense together: restoring one without the other leaves broken jobs. -->
+    <exclude domain="database" path="." />
 </full-backup-content>

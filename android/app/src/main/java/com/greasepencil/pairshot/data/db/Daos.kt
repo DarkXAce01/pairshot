@@ -89,6 +89,9 @@ interface PhotoDao {
     @Query("SELECT * FROM photos WHERE jobId = :jobId")
     suspend fun forJob(jobId: String): List<PhotoEntity>
 
+    @Query("SELECT * FROM photos")
+    suspend fun all(): List<PhotoEntity>
+
     @Query("DELETE FROM photos WHERE id = :id")
     suspend fun delete(id: String)
 
@@ -172,6 +175,9 @@ interface PairDao {
 
     @Query("SELECT * FROM pairs WHERE jobId = :jobId")
     suspend fun forJob(jobId: String): List<PairEntity>
+
+    @Query("SELECT * FROM pairs WHERE beforePhotoId IN (:photoIds) OR afterPhotoId IN (:photoIds)")
+    suspend fun usingPhotos(photoIds: List<String>): List<PairEntity>
 
     @Update
     suspend fun update(pair: PairEntity)

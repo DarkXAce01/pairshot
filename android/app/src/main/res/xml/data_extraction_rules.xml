@@ -2,6 +2,8 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="photos/" />
+        <!-- Jobs without their photos are broken; keep settings and branding only. -->
+        <exclude domain="database" path="." />
     </cloud-backup>
     <device-transfer>
         <include domain="file" path="photos/" />

@@ -244,4 +244,25 @@ class JobRepositoryTest {
         assertThat(t.linkRemoteState).isEqualTo("live")
         assertThat(t.linkViewedAt).isEqualTo(5)
     }
+
+    @Test fun `pairs whose photo files are gone are repaired`() = runTest {
+        val job = repo.createJob("Dona", null, null)
+        val lostBefore = shot()
+        val p1 = repo.addBefore(job, null, lostBefore)
+        repo.setAfter(p1, shot())
+        val p2 = repo.addBefore(job, null, shot())
+        val lostAfter = shot()
+        repo.setAfter(p2, lostAfter)
+        val p3 = repo.addBefore(job, null, shot())
+        repo.setAfter(p3, shot())
+        lostBefore.file.delete()
+        lostAfter.file.delete()
+
+        assertThat(repo.repairMissingPhotos()).isEqualTo(2)
+        val pairs = repo.observePairs(job).first().associateBy { it.pair.id }
+        assertThat(pairs.keys).containsExactly(p2, p3)
+        assertThat(pairs[p2]!!.needsAfter).isTrue()
+        assertThat(pairs[p3]!!.needsAfter).isFalse()
+        assertThat(repo.repairMissingPhotos()).isEqualTo(0)
+    }
 }
